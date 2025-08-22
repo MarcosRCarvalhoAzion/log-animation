@@ -95,10 +95,42 @@ export const LogControls = ({
           <div className="text-xs font-tech text-muted-foreground space-y-1">
             <div>• Hover particles for details</div>
             <div>• Click particles for more info</div>
-            <div>• <span style={{ color: themes[theme]?.colors.success || themes.azion.colors.success }}>Green</span>: 2xx Success</div>
-            <div>• <span style={{ color: themes[theme]?.colors.redirect || themes.azion.colors.redirect }}>Blue</span>: 3xx Redirect</div>
-            <div>• <span style={{ color: themes[theme]?.colors.error || themes.azion.colors.error }}>{theme === 'blue' ? 'Pink' : 'Red'}</span>: 4xx Client Error</div>
-            <div>• <span style={{ color: themes[theme]?.colors.serverError || themes.azion.colors.serverError }}>{theme === 'blue' ? 'Orange' : 'Yellow'}</span>: 5xx Server Error</div>
+            <div>• <span style={{ 
+              backgroundColor: themes[theme]?.colors.success || themes.azion.colors.success,
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              display: 'inline-block',
+              marginRight: '6px',
+              boxShadow: `0 0 8px ${themes[theme]?.colors.success || themes.azion.colors.success}80`
+            }}></span>2xx Success</div>
+            <div>• <span style={{ 
+              backgroundColor: themes[theme]?.colors.redirect || themes.azion.colors.redirect,
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              display: 'inline-block',
+              marginRight: '6px',
+              boxShadow: `0 0 8px ${themes[theme]?.colors.redirect || themes.azion.colors.redirect}80`
+            }}></span>3xx Redirect</div>
+            <div>• <span style={{ 
+              backgroundColor: themes[theme]?.colors.error || themes.azion.colors.error,
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              display: 'inline-block',
+              marginRight: '6px',
+              boxShadow: `0 0 8px ${themes[theme]?.colors.error || themes.azion.colors.error}80`
+            }}></span>4xx Client Error</div>
+            <div>• <span style={{ 
+              backgroundColor: themes[theme]?.colors.serverError || themes.azion.colors.serverError,
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              display: 'inline-block',
+              marginRight: '6px',
+              boxShadow: `0 0 8px ${themes[theme]?.colors.serverError || themes.azion.colors.serverError}80`
+            }}></span>5xx Server Error</div>
           </div>
         </div>
       </div>
