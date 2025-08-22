@@ -55,7 +55,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       glowIntensity: Math.random() * 0.5 + 0.5,
       phase: 'moving' as 'moving' | 'blocked' | 'exploding',
       laneIndex,
-      showingStatus: false
+      showingStatus: false,
+      statusDisplayTime: 0,
+      statusStickX: 0
     };
   }, [speed, getUrlLane]);
 
@@ -87,8 +89,16 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     if (inBarrierZone && !particle.showingStatus) {
       particle.color = getStatusColor(particle.log.statusCode);
       particle.showingStatus = true;
-    } else if (!inBarrierZone && particle.showingStatus) {
-      particle.showingStatus = false;
+      particle.statusDisplayTime = 0.5; // Show for 500ms
+      particle.statusStickX = barrierX; // Stick to barrier center
+    }
+    
+    // Update status display timer
+    if (particle.showingStatus) {
+      particle.statusDisplayTime -= deltaTime;
+      if (particle.statusDisplayTime <= 0) {
+        particle.showingStatus = false;
+      }
     }
     
     // Add current position to trail
@@ -168,14 +178,6 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw status code when showing status
-    if (particle.showingStatus && opacity > 0.5) {
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '12px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(particle.log.statusCode.toString(), particle.x, particle.y - particle.size - 8);
-    }
-
     // Add extra glow for hovered particle
     if (hoveredParticle?.id === particle.id && opacity > 0.1) {
       ctx.shadowColor = particle.color;
@@ -187,6 +189,40 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       ctx.shadowBlur = 0;
     }
   }, [hoveredParticle]);
+
+  // Separate function to draw status boxes on top
+  const drawStatusBoxes = useCallback((ctx: CanvasRenderingContext2D) => {
+    particlesRef.current.forEach(particle => {
+      if (particle.showingStatus) {
+        const opacity = particle.phase === 'exploding' ? particle.glowIntensity : 1;
+        if (opacity > 0.5) {
+          const statusText = particle.log.statusCode.toString();
+          const statusX = particle.statusStickX;
+          const statusY = particle.y - particle.size - 8;
+          
+          // Measure text for background box
+          ctx.font = '12px monospace';
+          ctx.textAlign = 'center';
+          const textMetrics = ctx.measureText(statusText);
+          const textWidth = textMetrics.width;
+          const textHeight = 12;
+          
+          // Draw black background box
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(
+            statusX - textWidth / 2 - 4,
+            statusY - textHeight - 2,
+            textWidth + 8,
+            textHeight + 4
+          );
+          
+          // Draw white text
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(statusText, statusX, statusY);
+        }
+      }
+    });
+  }, []);
 
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -314,6 +350,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       ctx.lineTo(barrierX, canvas.height);
       ctx.stroke();
       ctx.shadowBlur = 0;
+
+      // Draw status boxes on top of everything
+      drawStatusBoxes(ctx);
       
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -327,7 +366,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [createParticle, updateParticle, drawParticle]); // Removed 'logs' dependency
+  }, [createParticle, updateParticle, drawParticle, drawStatusBoxes]); // Removed 'logs' dependency
 
   return (
     <div className="relative w-full h-full">

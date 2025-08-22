@@ -26,6 +26,8 @@ export interface LogParticle {
   phase: 'moving' | 'blocked' | 'exploding';
   laneIndex: number;
   showingStatus: boolean;
+  statusDisplayTime: number;
+  statusStickX: number;
 }
 
 export interface LogStats {
