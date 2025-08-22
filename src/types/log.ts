@@ -24,6 +24,8 @@ export interface LogParticle {
   isAlive: boolean;
   glowIntensity: number;
   phase: 'moving' | 'blocked' | 'exploding';
+  laneIndex: number;
+  showingStatus: boolean;
 }
 
 export interface LogStats {

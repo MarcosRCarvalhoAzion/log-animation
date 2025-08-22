@@ -15,15 +15,29 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
   const [hoveredParticle, setHoveredParticle] = useState<LogParticle | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
+  // URL to lane mapping
+  const getUrlLane = useCallback((url: string) => {
+    const baseUrl = url.split('?')[0]; // Remove query params
+    const urlHash = baseUrl.split('').reduce((hash, char) => {
+      return ((hash << 5) - hash + char.charCodeAt(0)) & 0xffffffff;
+    }, 0);
+    return Math.abs(urlHash) % 8; // 8 lanes
+  }, []);
+
   const createParticle = useCallback((log: LogEntry): LogParticle => {
     const canvas = canvasRef.current;
     if (!canvas) throw new Error('Canvas not initialized');
 
+    // Calculate lane position
+    const laneIndex = getUrlLane(log.url);
+    const laneHeight = canvas.height / 8;
+    const laneY = (laneIndex * laneHeight) + (laneHeight / 2);
+
     // Logstalgia style: start from left, move right
     const startX = -20;
-    const startY = Math.random() * canvas.height;
+    const startY = laneY;
     const barrierX = canvas.width / 2;
-    const targetX = log.statusCode < 400 ? canvas.width + 20 : barrierX; // Success continues, errors stop at barrier
+    const targetX = log.statusCode < 400 ? canvas.width + 20 : barrierX;
     const targetY = startY; // Keep same Y level
     
     return {
@@ -32,28 +46,31 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       y: startY,
       targetX,
       targetY,
-      color: getStatusColor(log.statusCode),
+      color: '#888888', // Start with neutral color
       size: Math.random() * 3 + 4,
-      speed: (Math.random() * 2 + 3) * speed, // Much faster
+      speed: (Math.random() * 2 + 3) * speed,
       log,
       trail: [],
       isAlive: true,
       glowIntensity: Math.random() * 0.5 + 0.5,
-      phase: 'moving' as 'moving' | 'blocked' | 'exploding'
+      phase: 'moving' as 'moving' | 'blocked' | 'exploding',
+      laneIndex,
+      showingStatus: false
     };
-  }, [speed]);
+  }, [speed, getUrlLane]);
 
   const updateParticle = useCallback((particle: LogParticle, deltaTime: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
     const barrierX = canvas.width / 2;
+    const barrierZone = 60; // Zone around barrier for status display
     
     // Handle different phases
     if (particle.phase === 'exploding') {
       // Explosion animation with fade out
       particle.size += deltaTime * 30;
-      particle.glowIntensity -= deltaTime * 1.5; // Fade out
+      particle.glowIntensity -= deltaTime * 1.5;
       if (particle.size > 50 || particle.glowIntensity <= 0) {
         particle.isAlive = false;
       }
@@ -62,6 +79,17 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     
     // Move horizontally (left to right)
     particle.x += particle.speed * deltaTime * 100;
+    
+    // Check if particle is in barrier zone
+    const inBarrierZone = Math.abs(particle.x - barrierX) < barrierZone;
+    
+    // Colorize and show status when approaching/passing barrier
+    if (inBarrierZone && !particle.showingStatus) {
+      particle.color = getStatusColor(particle.log.statusCode);
+      particle.showingStatus = true;
+    } else if (!inBarrierZone && particle.showingStatus) {
+      particle.showingStatus = false;
+    }
     
     // Add current position to trail
     particle.trail.push({ 
@@ -83,11 +111,11 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       if (particle.log.statusCode >= 400) {
         // Block and explode
         particle.phase = 'exploding';
-        particle.x = barrierX; // Stop at barrier
+        particle.x = barrierX;
         return;
       } else {
         // Success - continue through barrier
-        particle.phase = 'blocked'; // Just a phase marker
+        particle.phase = 'blocked';
       }
     }
     
@@ -139,6 +167,14 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     ctx.beginPath();
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
     ctx.fill();
+
+    // Draw status code when showing status
+    if (particle.showingStatus && opacity > 0.5) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(particle.log.statusCode.toString(), particle.x, particle.y - particle.size - 8);
+    }
 
     // Add extra glow for hovered particle
     if (hoveredParticle?.id === particle.id && opacity > 0.1) {
@@ -234,6 +270,28 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         
         return particle.isAlive;
       });
+
+      // Draw horizontal lanes
+      const laneHeight = canvas.height / 8;
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 8; i++) {
+        const y = i * laneHeight;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      
+      // Draw lane labels
+      ctx.fillStyle = '#666666';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'left';
+      const sampleUrls = ['/api/users', '/api/products', '/api/orders', '/dashboard', '/login', '/api/analytics', '/static/css', '/api/reports'];
+      for (let i = 0; i < 8; i++) {
+        const y = (i * laneHeight) + (laneHeight / 2) + 3;
+        ctx.fillText(sampleUrls[i] || `/lane-${i}`, 10, y);
+      }
 
       // Draw barrier (Logstalgia style)
       const barrierX = canvas.width / 2;
