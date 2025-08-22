@@ -94,48 +94,54 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background cyber-grid scan-lines relative overflow-hidden">
-      {/* Header */}
-      <div className="relative z-10 border-b border-primary/20 bg-card/20 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="font-orbitron text-3xl font-bold text-glow-primary">
-            NEON LOG STREAM
-          </h1>
-          <p className="font-tech text-sm text-glow-accent mt-1">
-            Real-time HTTP log visualization • Logstalgia style
-          </p>
-          <p className="font-tech text-xs text-glow-accent/70 mt-2">
-            Send logs: <code className="bg-primary/10 px-1 rounded">curl -X POST {window.location.origin}/logs -d "log_line"</code>
-          </p>
+    <div className="h-screen w-screen bg-background cyber-grid scan-lines relative overflow-hidden flex flex-col">
+      {/* Compact Header */}
+      <div className="relative z-10 border-b border-primary/20 bg-card/20 backdrop-blur-sm flex-shrink-0">
+        <div className="px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-orbitron text-lg sm:text-2xl font-bold text-glow-primary">
+                NEON LOG STREAM
+              </h1>
+              <p className="font-tech text-xs sm:text-sm text-glow-accent">
+                Real-time HTTP log visualization • Logstalgia style
+              </p>
+            </div>
+            <div className="hidden lg:block">
+              <p className="font-tech text-xs text-glow-accent/70">
+                Send logs: <code className="bg-primary/10 px-1 rounded">curl -X POST {window.location.origin}/logs -d "log_line"</code>
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 container mx-auto px-4 py-6 h-[calc(100vh-100px)]">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
-          {/* Canvas Area */}
-          <div className="lg:col-span-3 bg-card/10 border border-primary/20 rounded-lg overflow-hidden relative">
-            <LogCanvas 
-              logs={logs} 
-              speed={speed} 
-              onParticleClick={handleParticleClick}
-            />
-            
-            {/* Status overlay */}
-            <div className="absolute top-4 right-4 bg-card/80 border border-primary/30 rounded-lg px-3 py-2 backdrop-blur-sm">
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  isRunning ? 'bg-status-success glow-success' : 'bg-status-error glow-error'
-                }`} />
-                <span className="font-tech text-xs text-glow-primary">
-                  {isRunning ? 'LIVE' : 'PAUSED'} • {logs.length} logs
-                </span>
-              </div>
+      {/* Main Content - Full remaining height */}
+      <div className="relative z-10 flex-1 flex overflow-hidden">
+        {/* Canvas Area - Takes 70% of space */}
+        <div className="w-[70%] bg-card/10 border-r border-primary/20 relative overflow-hidden">
+          <LogCanvas 
+            logs={logs} 
+            speed={speed} 
+            onParticleClick={handleParticleClick}
+          />
+          
+          {/* Status overlay */}
+          <div className="absolute top-4 right-4 bg-card/80 border border-primary/30 rounded-lg px-3 py-2 backdrop-blur-sm">
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${
+                isRunning ? 'bg-status-success glow-success' : 'bg-status-error glow-error'
+              }`} />
+              <span className="font-tech text-xs text-glow-primary">
+                {isRunning ? 'LIVE' : 'PAUSED'} • {logs.length} logs
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+        {/* Sidebar - 30% of horizontal space, full height */}
+        <div className="w-[30%] bg-background/50 backdrop-blur-sm border-l border-primary/20 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {/* Controls */}
             <LogControls
               isRunning={isRunning}
