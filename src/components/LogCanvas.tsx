@@ -122,6 +122,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         // Block and explode
         particle.phase = 'exploding';
         particle.x = barrierX;
+        blockedCount.current += 1;
         return;
       } else {
         // Success - continue through barrier
@@ -131,6 +132,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     
     // Remove particle when it goes off screen
     if (particle.x > canvas.width + 50) {
+      if (particle.phase === 'blocked') {
+        passedCount.current += 1;
+      }
       particle.isAlive = false;
     }
   }, []);
@@ -252,6 +256,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
   // Store logs in a ref to avoid useEffect dependency
   const logsRef = useRef<LogEntry[]>([]);
   const processedLogIds = useRef<Set<string>>(new Set());
+  const blockedCount = useRef<number>(0);
+  const passedCount = useRef<number>(0);
   
   // Update logs ref when logs change
   useEffect(() => {
@@ -353,6 +359,20 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
 
       // Draw status boxes on top of everything
       drawStatusBoxes(ctx);
+      
+      // Draw request counters
+      const counterY = 30;
+      
+      // Blocked requests counter (above barrier)
+      ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`BLOCKED: ${blockedCount.current}`, barrierX, counterY);
+      
+      // Passed requests counter (middle-right side)
+      ctx.fillStyle = '#44ff44';
+      ctx.textAlign = 'right';
+      ctx.fillText(`PASSED: ${passedCount.current}`, canvas.width - 20, canvas.height / 2);
       
 
       animationFrameRef.current = requestAnimationFrame(animate);
