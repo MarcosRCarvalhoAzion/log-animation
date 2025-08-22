@@ -57,7 +57,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       laneIndex,
       showingStatus: false,
       statusDisplayTime: 0,
-      statusStickX: 0
+      statusStickX: 0,
+      statusStartY: 0,
+      statusCurrentY: 0
     };
   }, [speed, getUrlLane]);
 
@@ -89,16 +91,30 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     if (inBarrierZone && !particle.showingStatus) {
       particle.color = getStatusColor(particle.log.statusCode);
       particle.showingStatus = true;
-      particle.statusDisplayTime = 0.5; // Show for 500ms
+      particle.statusDisplayTime = 1.0; // Show for 1 second
       particle.statusStickX = barrierX; // Stick to barrier center
+      particle.statusStartY = particle.y - particle.size - 8;
+      particle.statusCurrentY = particle.statusStartY;
     }
     
-    // Update status display timer
+    // Update status display timer and position
     if (particle.showingStatus) {
       particle.statusDisplayTime -= deltaTime;
+      // Slide up like a damage indicator
+      particle.statusCurrentY -= 30 * deltaTime; // Move up 30 pixels per second
+      
       if (particle.statusDisplayTime <= 0) {
         particle.showingStatus = false;
       }
+    }
+    
+    // Keep status visible for 1 second after explosion starts
+    if (particle.phase === 'exploding' && !particle.showingStatus && particle.glowIntensity > 0.8) {
+      particle.showingStatus = true;
+      particle.statusDisplayTime = 1.0;
+      particle.statusStickX = barrierX;
+      particle.statusStartY = particle.y - particle.size - 8;
+      particle.statusCurrentY = particle.statusStartY;
     }
     
     // Add current position to trail
@@ -131,7 +147,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
           startY: particle.y,
           targetY: 30,
           opacity: 0,
-          size: 8,
+          size: 4,
           color: getStatusColor(particle.log.statusCode),
           speed: 1500, // much faster - pixels per second
           isAlive: true,
@@ -341,11 +357,15 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
   const drawStatusBoxes = useCallback((ctx: CanvasRenderingContext2D) => {
     particlesRef.current.forEach(particle => {
       if (particle.showingStatus) {
-        const opacity = particle.phase === 'exploding' ? particle.glowIntensity : 1;
-        if (opacity > 0.5) {
+        const opacity = 1; // Always show status at full opacity regardless of particle phase
+        if (particle.statusDisplayTime > 0) {
           const statusText = particle.log.statusCode.toString();
           const statusX = particle.statusStickX;
-          const statusY = particle.y - particle.size - 8;
+          const statusY = particle.statusCurrentY;
+          
+          // Calculate fade opacity based on remaining time
+          const fadeProgress = 1 - (particle.statusDisplayTime / 1.0);
+          const fadeOpacity = Math.max(0, 1 - fadeProgress);
           
           // Measure text for background box
           ctx.font = '12px monospace';
@@ -354,8 +374,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
           const textWidth = textMetrics.width;
           const textHeight = 12;
           
-          // Draw black background box
-          ctx.fillStyle = '#000000';
+          // Draw black background box with fade
+          const bgAlpha = Math.floor(fadeOpacity * 255).toString(16).padStart(2, '0');
+          ctx.fillStyle = '#000000' + bgAlpha;
           ctx.fillRect(
             statusX - textWidth / 2 - 4,
             statusY - textHeight - 2,
@@ -363,8 +384,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
             textHeight + 4
           );
           
-          // Draw white text
-          ctx.fillStyle = '#ffffff';
+          // Draw white text with fade
+          const textAlpha = Math.floor(fadeOpacity * 255).toString(16).padStart(2, '0');
+          ctx.fillStyle = '#ffffff' + textAlpha;
           ctx.fillText(statusText, statusX, statusY);
         }
       }
