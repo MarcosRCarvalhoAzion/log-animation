@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { LogEntry, LogParticle } from '@/types/log';
+import { LogEntry, LogParticle, FeedGlow } from '../types/log';
 import { getStatusColor } from '@/utils/logGenerator';
 
 interface LogCanvasProps {
@@ -122,7 +122,23 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         // Block and explode
         particle.phase = 'exploding';
         particle.x = barrierX;
-        blockedCount.current += 1;
+        
+        // Create laser beam glow animation (don't increment counter yet)
+        const feedGlow: FeedGlow = {
+          id: `feed-${Date.now()}-${Math.random()}`,
+          x: barrierX,
+          y: particle.y,
+          startY: particle.y,
+          targetY: 30,
+          opacity: 0,
+          size: 8,
+          color: getStatusColor(particle.log.statusCode),
+          speed: 1500, // much faster - pixels per second
+          isAlive: true,
+          progress: 0,
+          startTime: Date.now()
+        };
+        feedGlows.current.push(feedGlow);
         return;
       } else {
         // Success - continue through barrier
@@ -137,6 +153,110 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
       particle.isAlive = false;
     }
+  }, []);
+
+  const updateFeedGlow = useCallback((glow: FeedGlow, deltaTime: number) => {
+    const currentTime = Date.now();
+    const elapsed = (currentTime - glow.startTime) / 1000; // seconds
+    const totalDistance = glow.startY - glow.targetY;
+    const duration = totalDistance / glow.speed; // total animation duration
+    
+    // Calculate progress (0 to 1)
+    glow.progress = Math.min(elapsed / duration, 1);
+    
+    // Smooth easing function (ease-out-cubic)
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    const easedProgress = easeOutCubic(glow.progress);
+    
+    // Update position with smooth easing
+    glow.y = glow.startY - (totalDistance * easedProgress);
+    
+    // Smooth opacity transitions
+    if (glow.progress < 0.1) {
+      // Fade in during first 10% of journey
+      glow.opacity = glow.progress / 0.1;
+    } else if (glow.progress > 0.9) {
+      // Fade out during last 10% of journey
+      glow.opacity = (1 - glow.progress) / 0.1;
+    } else {
+      // Full opacity in middle
+      glow.opacity = 1;
+    }
+    
+    // Increment counter and remove when reached target
+    if (glow.progress >= 1) {
+      blockedCount.current += 1;
+      glow.isAlive = false;
+    }
+  }, []);
+
+  const drawFeedGlow = useCallback((ctx: CanvasRenderingContext2D, glow: FeedGlow) => {
+    const alpha = Math.floor(glow.opacity * 255).toString(16).padStart(2, '0');
+    const trailLength = 60;
+    
+    // Save context for glow effects
+    ctx.save();
+    
+    // Outer glow halo
+    const haloGradient = ctx.createRadialGradient(
+      glow.x, glow.y, 0,
+      glow.x, glow.y, glow.size * 4
+    );
+    haloGradient.addColorStop(0, glow.color + Math.floor(glow.opacity * 0.8 * 255).toString(16).padStart(2, '0'));
+    haloGradient.addColorStop(0.3, glow.color + Math.floor(glow.opacity * 0.4 * 255).toString(16).padStart(2, '0'));
+    haloGradient.addColorStop(1, glow.color + '00');
+    
+    ctx.fillStyle = haloGradient;
+    ctx.beginPath();
+    ctx.arc(glow.x, glow.y, glow.size * 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Main beam body with realistic falloff
+    const beamGradient = ctx.createLinearGradient(
+      glow.x, glow.y + trailLength,
+      glow.x, glow.y
+    );
+    beamGradient.addColorStop(0, glow.color + '00');
+    beamGradient.addColorStop(0.3, glow.color + Math.floor(glow.opacity * 0.2 * 255).toString(16).padStart(2, '0'));
+    beamGradient.addColorStop(0.8, glow.color + Math.floor(glow.opacity * 0.7 * 255).toString(16).padStart(2, '0'));
+    beamGradient.addColorStop(1, glow.color + alpha);
+    
+    // Draw main beam with glow
+    ctx.shadowColor = glow.color;
+    ctx.shadowBlur = glow.size * 2;
+    ctx.strokeStyle = glow.color + alpha;
+    ctx.lineWidth = glow.size;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(glow.x, glow.y + trailLength);
+    ctx.lineTo(glow.x, glow.y);
+    ctx.stroke();
+    
+    // Intense core beam (colored, not white)
+    ctx.shadowBlur = glow.size;
+    ctx.strokeStyle = glow.color + Math.floor(glow.opacity * 0.9 * 255).toString(16).padStart(2, '0');
+    ctx.lineWidth = glow.size * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(glow.x, glow.y + trailLength * 0.7);
+    ctx.lineTo(glow.x, glow.y);
+    ctx.stroke();
+    
+    // Bright leading point with bloom
+    ctx.shadowBlur = glow.size * 1.5;
+    ctx.shadowColor = glow.color;
+    ctx.fillStyle = glow.color + alpha;
+    ctx.beginPath();
+    ctx.arc(glow.x, glow.y, glow.size * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Inner core point
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = glow.color + alpha;
+    ctx.beginPath();
+    ctx.arc(glow.x, glow.y, glow.size * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
   }, []);
 
   const drawParticle = useCallback((ctx: CanvasRenderingContext2D, particle: LogParticle) => {
@@ -158,8 +278,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
     });
 
-    // Draw glow effect with fade
-    const glowSize = particle.size * (particle.phase === 'exploding' ? 2 : 3) * Math.max(particle.glowIntensity, 0.1);
+    // Draw glow effect with fade - larger explosion
+    const glowSize = particle.size * (particle.phase === 'exploding' ? 6 : 3) * Math.max(particle.glowIntensity, 0.1);
     const gradient = ctx.createRadialGradient(
       particle.x, particle.y, 0,
       particle.x, particle.y, glowSize
@@ -175,20 +295,43 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     ctx.arc(particle.x, particle.y, glowSize, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw main particle with fade
+    // Draw main particle with fade - enhanced explosion
     const mainOpacity = Math.max(opacity, 0);
-    ctx.fillStyle = particle.color + Math.floor(mainOpacity * 255).toString(16).padStart(2, '0');
-    ctx.beginPath();
-    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Add extra glow for hovered particle
-    if (hoveredParticle?.id === particle.id && opacity > 0.1) {
-      ctx.shadowColor = particle.color;
-      ctx.shadowBlur = 20;
+    const particleSize = particle.phase === 'exploding' ? particle.size * 2 : particle.size;
+    
+    if (particle.phase === 'exploding') {
+      // Multiple explosion rings for realistic effect
+      for (let ring = 0; ring < 3; ring++) {
+        const ringSize = particleSize * (1 + ring * 0.8) * particle.glowIntensity;
+        const ringOpacity = mainOpacity * (1 - ring * 0.3);
+        
+        ctx.fillStyle = particle.color + Math.floor(ringOpacity * 255).toString(16).padStart(2, '0');
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, ringSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Bright core explosion
+      ctx.fillStyle = '#ffffff' + Math.floor(mainOpacity * 0.8 * 255).toString(16).padStart(2, '0');
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particleSize * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Normal particle
       ctx.fillStyle = particle.color + Math.floor(mainOpacity * 255).toString(16).padStart(2, '0');
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size + 2, 0, Math.PI * 2);
+      ctx.arc(particle.x, particle.y, particleSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Add extra glow for hovered particle or explosion
+    if ((hoveredParticle?.id === particle.id || particle.phase === 'exploding') && opacity > 0.1) {
+      const extraGlowSize = particle.phase === 'exploding' ? particleSize * 1.5 : particle.size + 2;
+      ctx.shadowColor = particle.color;
+      ctx.shadowBlur = particle.phase === 'exploding' ? 40 : 20;
+      ctx.fillStyle = particle.color + Math.floor(mainOpacity * 0.6 * 255).toString(16).padStart(2, '0');
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, extraGlowSize, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
     }
@@ -258,6 +401,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
   const processedLogIds = useRef<Set<string>>(new Set());
   const blockedCount = useRef<number>(0);
   const passedCount = useRef<number>(0);
+  const feedGlows = useRef<FeedGlow[]>([]);
   
   // Update logs ref when logs change
   useEffect(() => {
@@ -303,14 +447,23 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         particlesRef.current.push(particle);
       });
 
-      // Update and draw particles
-      particlesRef.current = particlesRef.current.filter(particle => {
-        if (!particle.isAlive) return false;
-        
+      // Update particles
+      particlesRef.current.forEach(particle => {
         updateParticle(particle, deltaTime);
+      });
+      
+      // Update feed glows
+      feedGlows.current.forEach(glow => {
+        updateFeedGlow(glow, deltaTime);
+      });
+      
+      // Remove dead particles and glows
+      particlesRef.current = particlesRef.current.filter(p => p.isAlive);
+      feedGlows.current = feedGlows.current.filter(g => g.isAlive);
+
+      // Draw particles
+      particlesRef.current.forEach(particle => {
         drawParticle(ctx, particle);
-        
-        return particle.isAlive;
       });
 
       // Draw horizontal lanes
@@ -357,17 +510,47 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
+      // Draw feed glows on top of barrier
+      feedGlows.current.forEach(glow => {
+        drawFeedGlow(ctx, glow);
+      });
+      
       // Draw status boxes on top of everything
       drawStatusBoxes(ctx);
       
       // Draw request counters
       const counterY = 30;
       
-      // Blocked requests counter (above barrier)
-      ctx.fillStyle = '#ff4444';
+      // Blocked requests counter (above barrier) with background box
+      const blockedText = `BLOCKED: ${blockedCount.current}`;
       ctx.font = 'bold 16px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`BLOCKED: ${blockedCount.current}`, barrierX, counterY);
+      const blockedMetrics = ctx.measureText(blockedText);
+      const blockedWidth = blockedMetrics.width;
+      const blockedHeight = 16;
+      
+      // Draw black background box
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(
+        barrierX - blockedWidth / 2 - 8,
+        counterY - blockedHeight - 4,
+        blockedWidth + 16,
+        blockedHeight + 8
+      );
+      
+      // Draw red border
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        barrierX - blockedWidth / 2 - 8,
+        counterY - blockedHeight - 4,
+        blockedWidth + 16,
+        blockedHeight + 8
+      );
+      
+      // Draw red text
+      ctx.fillStyle = '#ff4444';
+      ctx.fillText(blockedText, barrierX, counterY);
       
       // Passed requests counter (middle-right side)
       ctx.fillStyle = '#44ff44';

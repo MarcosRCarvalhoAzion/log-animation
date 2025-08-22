@@ -30,6 +30,21 @@ export interface LogParticle {
   statusStickX: number;
 }
 
+export interface FeedGlow {
+  id: string;
+  x: number;
+  y: number;
+  startY: number;
+  targetY: number;
+  opacity: number;
+  size: number;
+  color: string;
+  speed: number;
+  isAlive: boolean;
+  progress: number;
+  startTime: number;
+}
+
 export interface LogStats {
   totalRequests: number;
   statusCounts: {
