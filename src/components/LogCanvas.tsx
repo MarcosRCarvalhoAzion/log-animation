@@ -15,7 +15,13 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
   const hoveredParticleRef = useRef<LogParticle | null>(null);
   const mousePosRef = useRef({ x: 0, y: 0 });
   const stickyHoverInfoRef = useRef<{ particle: LogParticle; position: { x: number; y: number } } | null>(null);
+  const speedRef = useRef(speed);
   const [renderTrigger, setRenderTrigger] = useState(0);
+
+  // Update speed ref when speed prop changes
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
 
   // URL to lane mapping
   const getUrlLane = useCallback((url: string) => {
@@ -30,17 +36,26 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     const canvas = canvasRef.current;
     if (!canvas) throw new Error('Canvas not initialized');
 
-    // Calculate lane position
+    // Calculate lane position with randomization
     const laneIndex = getUrlLane(log.url);
     const laneHeight = canvas.height / 8;
-    const laneY = (laneIndex * laneHeight) + (laneHeight / 2);
+    const laneTop = laneIndex * laneHeight;
+    const laneBottom = (laneIndex + 1) * laneHeight;
+    
+    // Add padding to keep particles away from lane edges
+    const lanePadding = 8;
+    const minY = laneTop + lanePadding;
+    const maxY = laneBottom - lanePadding;
+    
+    // Randomize Y position within lane boundaries
+    const randomY = minY + Math.random() * (maxY - minY);
 
     // Logstalgia style: start from left, move right
     const startX = -20;
-    const startY = laneY;
+    const startY = randomY;
     const barrierX = canvas.width / 2;
     const targetX = log.statusCode < 400 ? canvas.width + 20 : barrierX;
-    const targetY = startY; // Keep same Y level
+    const targetY = startY; // Keep same Y level throughout journey
     
     return {
       id: log.id,
@@ -50,7 +65,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       targetY,
       color: '#888888', // Start with neutral color
       size: Math.random() * 3 + 4,
-      speed: (Math.random() * 2 + 3) * speed,
+      speed: (Math.random() * 2 + 3) * speedRef.current,
       log,
       trail: [],
       isAlive: true,
@@ -83,8 +98,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       return;
     }
     
-    // Move horizontally (left to right)
-    particle.x += particle.speed * deltaTime * 100;
+    // Move horizontally (left to right) - apply current speed multiplier
+    particle.x += particle.speed * speedRef.current * deltaTime * 100;
     
     // Check if particle is in barrier zone
     const inBarrierZone = Math.abs(particle.x - barrierX) < barrierZone;
@@ -209,7 +224,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
   }, []);
 
   const drawFeedGlow = useCallback((ctx: CanvasRenderingContext2D, glow: FeedGlow) => {
-    const alpha = Math.floor(glow.opacity * 255).toString(16).padStart(2, '0');
+    const alpha = Math.floor(Math.max(0, Math.min(255, glow.opacity * 255))).toString(16).padStart(2, '0');
     const trailLength = 60;
     
     // Save context for glow effects
@@ -220,8 +235,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       glow.x, glow.y, 0,
       glow.x, glow.y, glow.size * 4
     );
-    haloGradient.addColorStop(0, glow.color + Math.floor(glow.opacity * 0.8 * 255).toString(16).padStart(2, '0'));
-    haloGradient.addColorStop(0.3, glow.color + Math.floor(glow.opacity * 0.4 * 255).toString(16).padStart(2, '0'));
+    haloGradient.addColorStop(0, glow.color + Math.floor(Math.max(0, Math.min(255, glow.opacity * 0.8 * 255))).toString(16).padStart(2, '0'));
+    haloGradient.addColorStop(0.3, glow.color + Math.floor(Math.max(0, Math.min(255, glow.opacity * 0.4 * 255))).toString(16).padStart(2, '0'));
     haloGradient.addColorStop(1, glow.color + '00');
     
     ctx.fillStyle = haloGradient;
@@ -235,8 +250,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       glow.x, glow.y
     );
     beamGradient.addColorStop(0, glow.color + '00');
-    beamGradient.addColorStop(0.3, glow.color + Math.floor(glow.opacity * 0.2 * 255).toString(16).padStart(2, '0'));
-    beamGradient.addColorStop(0.8, glow.color + Math.floor(glow.opacity * 0.7 * 255).toString(16).padStart(2, '0'));
+    beamGradient.addColorStop(0.3, glow.color + Math.floor(Math.max(0, Math.min(255, glow.opacity * 0.2 * 255))).toString(16).padStart(2, '0'));
+    beamGradient.addColorStop(0.8, glow.color + Math.floor(Math.max(0, Math.min(255, glow.opacity * 0.7 * 255))).toString(16).padStart(2, '0'));
     beamGradient.addColorStop(1, glow.color + alpha);
     
     // Draw main beam with glow
@@ -252,7 +267,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     
     // Intense core beam (colored, not white)
     ctx.shadowBlur = glow.size;
-    ctx.strokeStyle = glow.color + Math.floor(glow.opacity * 0.9 * 255).toString(16).padStart(2, '0');
+    ctx.strokeStyle = glow.color + Math.floor(Math.max(0, Math.min(255, glow.opacity * 0.9 * 255))).toString(16).padStart(2, '0');
     ctx.lineWidth = glow.size * 0.3;
     ctx.beginPath();
     ctx.moveTo(glow.x, glow.y + trailLength * 0.7);
@@ -287,7 +302,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         const nextPoint = particle.trail[index + 1];
         const trailOpacity = point.opacity * opacity;
         
-        ctx.strokeStyle = particle.color + Math.floor(trailOpacity * 255).toString(16).padStart(2, '0');
+        ctx.strokeStyle = particle.color + Math.floor(Math.max(0, Math.min(255, trailOpacity * 255))).toString(16).padStart(2, '0');
         ctx.lineWidth = particle.size * 0.3;
         ctx.beginPath();
         ctx.moveTo(point.x, point.y);
@@ -304,8 +319,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     );
     
     const glowOpacity = Math.max(opacity * 0.8, 0);
-    gradient.addColorStop(0, particle.color + Math.floor(glowOpacity * 255).toString(16).padStart(2, '0'));
-    gradient.addColorStop(0.5, particle.color + Math.floor(glowOpacity * 0.3 * 255).toString(16).padStart(2, '0'));
+    gradient.addColorStop(0, particle.color + Math.floor(Math.max(0, Math.min(255, glowOpacity * 255))).toString(16).padStart(2, '0'));
+    gradient.addColorStop(0.5, particle.color + Math.floor(Math.max(0, Math.min(255, glowOpacity * 0.3 * 255))).toString(16).padStart(2, '0'));
     gradient.addColorStop(1, particle.color + '00');
     
     ctx.fillStyle = gradient;
@@ -323,20 +338,20 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         const ringSize = particleSize * (1 + ring * 0.8) * particle.glowIntensity;
         const ringOpacity = mainOpacity * (1 - ring * 0.3);
         
-        ctx.fillStyle = particle.color + Math.floor(ringOpacity * 255).toString(16).padStart(2, '0');
+        ctx.fillStyle = particle.color + Math.floor(Math.max(0, Math.min(255, ringOpacity * 255))).toString(16).padStart(2, '0');
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, ringSize, 0, Math.PI * 2);
         ctx.fill();
       }
       
       // Bright core explosion
-      ctx.fillStyle = '#ffffff' + Math.floor(mainOpacity * 0.8 * 255).toString(16).padStart(2, '0');
+      ctx.fillStyle = '#ffffff' + Math.floor(Math.max(0, Math.min(255, mainOpacity * 0.8 * 255))).toString(16).padStart(2, '0');
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, particleSize * 0.5, 0, Math.PI * 2);
       ctx.fill();
     } else {
       // Normal particle
-      ctx.fillStyle = particle.color + Math.floor(mainOpacity * 255).toString(16).padStart(2, '0');
+      ctx.fillStyle = particle.color + Math.floor(Math.max(0, Math.min(255, mainOpacity * 255))).toString(16).padStart(2, '0');
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, particleSize, 0, Math.PI * 2);
       ctx.fill();
@@ -347,7 +362,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       const extraGlowSize = particle.phase === 'exploding' ? particleSize * 1.5 : particle.size + 2;
       ctx.shadowColor = particle.color;
       ctx.shadowBlur = particle.phase === 'exploding' ? 40 : 20;
-      ctx.fillStyle = particle.color + Math.floor(mainOpacity * 0.6 * 255).toString(16).padStart(2, '0');
+      ctx.fillStyle = particle.color + Math.floor(Math.max(0, Math.min(255, mainOpacity * 0.6 * 255))).toString(16).padStart(2, '0');
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, extraGlowSize, 0, Math.PI * 2);
       ctx.fill();
@@ -360,7 +375,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       const pulseSize = particle.size + 8 + Math.sin(time) * 3;
       const pulseOpacity = 0.6 + Math.sin(time) * 0.3;
       
-      ctx.strokeStyle = '#00ffff' + Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0');
+      ctx.strokeStyle = '#00ffff' + Math.floor(Math.max(0, Math.min(255, pulseOpacity * 255))).toString(16).padStart(2, '0');
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, pulseSize, 0, Math.PI * 2);
@@ -413,7 +428,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
           const textHeight = 12;
           
           // Draw black background box with fade
-          const bgAlpha = Math.floor(fadeOpacity * 255).toString(16).padStart(2, '0');
+          const bgAlpha = Math.floor(Math.max(0, Math.min(255, fadeOpacity * 255))).toString(16).padStart(2, '0');
           ctx.fillStyle = '#000000' + bgAlpha;
           ctx.fillRect(
             statusX - textWidth / 2 - 4,
@@ -423,7 +438,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
           );
           
           // Draw white text with fade
-          const textAlpha = Math.floor(fadeOpacity * 255).toString(16).padStart(2, '0');
+          const textAlpha = Math.floor(Math.max(0, Math.min(255, fadeOpacity * 255))).toString(16).padStart(2, '0');
           ctx.fillStyle = '#ffffff' + textAlpha;
           ctx.fillText(statusText, statusX, statusY);
         }
@@ -511,7 +526,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
 
   const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     if (hoveredParticleRef.current && onParticleClick) {
-      onParticleClick(hoveredParticleRef.current.log);
+      // Store the log data immediately to avoid reference issues when particle vanishes
+      const logData = { ...hoveredParticleRef.current.log };
+      onParticleClick(logData);
     }
   }, [onParticleClick]);
 
@@ -717,7 +734,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [createParticle, updateParticle, drawParticle, drawStatusBoxes, drawFeedGlow, updateFeedGlow]); // Removed 'logs' dependency
+  }, []); // Remove all dependencies to prevent animation interruption
 
   return (
     <div className="relative w-full h-full">
@@ -731,14 +748,14 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       {/* Sticky Hover Tooltip */}
       {stickyHoverInfoRef.current && (
         <div 
-          className="fixed z-50 bg-card border border-primary/30 rounded-lg p-3 text-sm pointer-events-none glow-primary shadow-lg"
+          className="fixed z-50 bg-card border border-primary/30 rounded-lg p-3 text-sm glow-primary shadow-lg"
           style={{
             left: stickyHoverInfoRef.current.position.x + 10,
             top: stickyHoverInfoRef.current.position.y - 60,
             maxWidth: '300px'
           }}
         >
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="font-orbitron text-glow-primary font-bold">
               {stickyHoverInfoRef.current.particle.log.method} {stickyHoverInfoRef.current.particle.log.statusCode}
             </div>
@@ -751,6 +768,12 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
             <div className="text-foreground/80 text-xs">
               {stickyHoverInfoRef.current.particle.log.timestamp.toLocaleTimeString()}
             </div>
+            <button
+              onClick={() => onParticleClick && onParticleClick({ ...stickyHoverInfoRef.current!.particle.log })}
+              className="w-full mt-2 px-3 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/50 rounded text-xs font-medium text-primary transition-colors"
+            >
+              Show Details
+            </button>
           </div>
         </div>
       )}
@@ -758,14 +781,14 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       {/* Regular Hover Tooltip (only when no sticky info) */}
       {hoveredParticleRef.current && !stickyHoverInfoRef.current && (
         <div 
-          className="fixed z-50 bg-card border border-primary/30 rounded-lg p-3 text-sm pointer-events-none glow-primary opacity-80"
+          className="fixed z-50 bg-card border border-primary/30 rounded-lg p-3 text-sm glow-primary opacity-80"
           style={{
             left: mousePosRef.current.x + 10,
             top: mousePosRef.current.y - 60,
             maxWidth: '300px'
           }}
         >
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="font-orbitron text-glow-primary font-bold">
               {hoveredParticleRef.current.log.method} {hoveredParticleRef.current.log.statusCode}
             </div>
@@ -778,6 +801,12 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
             <div className="text-foreground/80 text-xs">
               {hoveredParticleRef.current.log.timestamp.toLocaleTimeString()}
             </div>
+            <button
+              onClick={() => onParticleClick && onParticleClick({ ...hoveredParticleRef.current!.log })}
+              className="w-full mt-2 px-3 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/50 rounded text-xs font-medium text-primary transition-colors"
+            >
+              Show Details
+            </button>
           </div>
         </div>
       )}
