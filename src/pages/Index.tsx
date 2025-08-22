@@ -13,6 +13,7 @@ const Index = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(true);
   const [speed, setSpeed] = useState(1);
+  const [frequency, setFrequency] = useState(2.0); // requests per second
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -46,10 +47,10 @@ const Index = () => {
         // Keep only last 1000 logs for performance
         return updated.slice(-1000);
       });
-    }, Math.max(100, 1000 / speed)); // Faster speed = more frequent logs
+    }, Math.max(50, 1000 / frequency)); // frequency controls requests per second
 
     return () => clearInterval(interval);
-  }, [isRunning, speed]);
+  }, [isRunning, frequency]);
 
   const handleToggleRunning = useCallback(() => {
     setIsRunning(prev => {
@@ -64,6 +65,13 @@ const Index = () => {
   const handleSpeedChange = useCallback((newSpeed: number) => {
     setSpeed(newSpeed);
     toast(`Speed changed to ${newSpeed.toFixed(1)}x`, {
+      description: 'Animation speed updated'
+    });
+  }, []);
+
+  const handleFrequencyChange = useCallback((newFrequency: number) => {
+    setFrequency(newFrequency);
+    toast(`Request frequency changed to ${newFrequency.toFixed(1)}/s`, {
       description: 'Log generation rate updated'
     });
   }, []);
@@ -132,8 +140,10 @@ const Index = () => {
             <LogControls
               isRunning={isRunning}
               speed={speed}
+              frequency={frequency}
               onToggleRunning={handleToggleRunning}
               onSpeedChange={handleSpeedChange}
+              onFrequencyChange={handleFrequencyChange}
               onClear={handleClear}
             />
 

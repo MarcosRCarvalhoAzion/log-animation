@@ -4,16 +4,20 @@ import { Slider } from '@/components/ui/slider';
 interface LogControlsProps {
   isRunning: boolean;
   speed: number;
+  frequency: number;
   onToggleRunning: () => void;
   onSpeedChange: (speed: number) => void;
+  onFrequencyChange: (frequency: number) => void;
   onClear: () => void;
 }
 
 export const LogControls = ({ 
   isRunning, 
   speed, 
+  frequency,
   onToggleRunning, 
   onSpeedChange, 
+  onFrequencyChange,
   onClear 
 }: LogControlsProps) => {
   return (
@@ -48,6 +52,22 @@ export const LogControls = ({
             onValueChange={([value]) => onSpeedChange(value)}
             min={0.1}
             max={5}
+            step={0.1}
+            className="w-full"
+          />
+        </div>
+
+        {/* Request Frequency Control */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-tech text-glow-accent">Request Frequency</span>
+            <span className="text-sm font-orbitron text-glow-primary">{frequency.toFixed(1)}/s</span>
+          </div>
+          <Slider
+            value={[frequency]}
+            onValueChange={([value]) => onFrequencyChange(value)}
+            min={0.1}
+            max={50}
             step={0.1}
             className="w-full"
           />
