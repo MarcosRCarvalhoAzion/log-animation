@@ -104,11 +104,11 @@ export function parseApacheLog(logLine: string): LogEntry | null {
 }
 
 export function getStatusColor(statusCode: number): string {
-  if (statusCode >= 200 && statusCode < 300) return 'hsl(var(--success))';
-  if (statusCode >= 300 && statusCode < 400) return 'hsl(var(--redirect))';
-  if (statusCode >= 400 && statusCode < 500) return 'hsl(var(--error))';
-  if (statusCode >= 500) return 'hsl(var(--server-error))';
-  return 'hsl(var(--foreground))';
+  if (statusCode >= 200 && statusCode < 300) return '#00ff00'; // Green for 2xx
+  if (statusCode >= 300 && statusCode < 400) return '#0080ff'; // Blue for 3xx
+  if (statusCode >= 400 && statusCode < 500) return '#ff0000'; // Red for 4xx
+  if (statusCode >= 500) return '#ff8000'; // Orange for 5xx
+  return '#00ffff'; // Cyan fallback
 }
 
 export function getStatusColorClass(statusCode: number): string {

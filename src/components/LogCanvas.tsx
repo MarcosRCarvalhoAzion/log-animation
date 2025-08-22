@@ -19,10 +19,12 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     const canvas = canvasRef.current;
     if (!canvas) throw new Error('Canvas not initialized');
 
-    const startX = Math.random() * canvas.width;
-    const startY = -20;
-    const targetX = canvas.width / 2 + (Math.random() - 0.5) * 100;
-    const targetY = canvas.height / 2;
+    // Logstalgia style: start from left, move right
+    const startX = -20;
+    const startY = Math.random() * canvas.height;
+    const barrierX = canvas.width / 2;
+    const targetX = log.statusCode < 400 ? canvas.width + 20 : barrierX; // Success continues, errors stop at barrier
+    const targetY = startY; // Keep same Y level
     
     return {
       id: log.id,
@@ -31,25 +33,36 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       targetX,
       targetY,
       color: getStatusColor(log.statusCode),
-      size: Math.random() * 4 + 3,
-      speed: (Math.random() * 2 + 1) * speed,
+      size: Math.random() * 3 + 4,
+      speed: (Math.random() * 2 + 3) * speed, // Much faster
       log,
       trail: [],
       isAlive: true,
-      glowIntensity: Math.random() * 0.5 + 0.5
+      glowIntensity: Math.random() * 0.5 + 0.5,
+      phase: 'moving' as 'moving' | 'blocked' | 'exploding'
     };
   }, [speed]);
 
   const updateParticle = useCallback((particle: LogParticle, deltaTime: number) => {
-    const dx = particle.targetX - particle.x;
-    const dy = particle.targetY - particle.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance < 5) {
-      particle.isAlive = false;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const barrierX = canvas.width / 2;
+    
+    // Handle different phases
+    if (particle.phase === 'exploding') {
+      // Explosion animation with fade out
+      particle.size += deltaTime * 30;
+      particle.glowIntensity -= deltaTime * 1.5; // Fade out
+      if (particle.size > 50 || particle.glowIntensity <= 0) {
+        particle.isAlive = false;
+      }
       return;
     }
-
+    
+    // Move horizontally (left to right)
+    particle.x += particle.speed * deltaTime * 100;
+    
     // Add current position to trail
     particle.trail.push({ 
       x: particle.x, 
@@ -58,35 +71,43 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     });
 
     // Limit trail length and fade
-    if (particle.trail.length > 15) {
+    if (particle.trail.length > 10) {
       particle.trail.shift();
     }
     particle.trail.forEach((point, index) => {
       point.opacity = (index + 1) / particle.trail.length * 0.8;
     });
-
-    // Move particle towards target
-    const moveX = (dx / distance) * particle.speed * deltaTime;
-    const moveY = (dy / distance) * particle.speed * deltaTime;
     
-    particle.x += moveX;
-    particle.y += moveY;
-
-    // Add some randomness for organic movement
-    particle.x += (Math.random() - 0.5) * 0.5;
-    particle.y += (Math.random() - 0.5) * 0.5;
+    // Check if particle reached barrier
+    if (particle.x >= barrierX && particle.phase === 'moving') {
+      if (particle.log.statusCode >= 400) {
+        // Block and explode
+        particle.phase = 'exploding';
+        particle.x = barrierX; // Stop at barrier
+        return;
+      } else {
+        // Success - continue through barrier
+        particle.phase = 'blocked'; // Just a phase marker
+      }
+    }
+    
+    // Remove particle when it goes off screen
+    if (particle.x > canvas.width + 50) {
+      particle.isAlive = false;
+    }
   }, []);
 
   const drawParticle = useCallback((ctx: CanvasRenderingContext2D, particle: LogParticle) => {
+    // Calculate opacity based on phase
+    const opacity = particle.phase === 'exploding' ? particle.glowIntensity : 1;
+    
     // Draw trail
     particle.trail.forEach((point, index) => {
       if (index < particle.trail.length - 1) {
         const nextPoint = particle.trail[index + 1];
-        const gradient = ctx.createLinearGradient(point.x, point.y, nextPoint.x, nextPoint.y);
-        gradient.addColorStop(0, particle.color.replace(')', `, ${point.opacity})`).replace('hsl', 'hsla'));
-        gradient.addColorStop(1, particle.color.replace(')', `, ${nextPoint.opacity})`).replace('hsl', 'hsla'));
+        const trailOpacity = point.opacity * opacity;
         
-        ctx.strokeStyle = gradient;
+        ctx.strokeStyle = particle.color + Math.floor(trailOpacity * 255).toString(16).padStart(2, '0');
         ctx.lineWidth = particle.size * 0.3;
         ctx.beginPath();
         ctx.moveTo(point.x, point.y);
@@ -95,32 +116,35 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
     });
 
-    // Draw glow effect
-    const glowSize = particle.size * 3 * particle.glowIntensity;
+    // Draw glow effect with fade
+    const glowSize = particle.size * (particle.phase === 'exploding' ? 2 : 3) * Math.max(particle.glowIntensity, 0.1);
     const gradient = ctx.createRadialGradient(
       particle.x, particle.y, 0,
       particle.x, particle.y, glowSize
     );
-    gradient.addColorStop(0, particle.color.replace(')', ', 0.8)').replace('hsl', 'hsla'));
-    gradient.addColorStop(0.5, particle.color.replace(')', ', 0.3)').replace('hsl', 'hsla'));
-    gradient.addColorStop(1, particle.color.replace(')', ', 0)').replace('hsl', 'hsla'));
+    
+    const glowOpacity = Math.max(opacity * 0.8, 0);
+    gradient.addColorStop(0, particle.color + Math.floor(glowOpacity * 255).toString(16).padStart(2, '0'));
+    gradient.addColorStop(0.5, particle.color + Math.floor(glowOpacity * 0.3 * 255).toString(16).padStart(2, '0'));
+    gradient.addColorStop(1, particle.color + '00');
     
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(particle.x, particle.y, glowSize, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw main particle
-    ctx.fillStyle = particle.color;
+    // Draw main particle with fade
+    const mainOpacity = Math.max(opacity, 0);
+    ctx.fillStyle = particle.color + Math.floor(mainOpacity * 255).toString(16).padStart(2, '0');
     ctx.beginPath();
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
     ctx.fill();
 
     // Add extra glow for hovered particle
-    if (hoveredParticle?.id === particle.id) {
+    if (hoveredParticle?.id === particle.id && opacity > 0.1) {
       ctx.shadowColor = particle.color;
       ctx.shadowBlur = 20;
-      ctx.fillStyle = particle.color;
+      ctx.fillStyle = particle.color + Math.floor(mainOpacity * 255).toString(16).padStart(2, '0');
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, particle.size + 2, 0, Math.PI * 2);
       ctx.fill();
@@ -153,6 +177,14 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     }
   }, [hoveredParticle, onParticleClick]);
 
+  // Store logs in a ref to avoid useEffect dependency
+  const logsRef = useRef<LogEntry[]>([]);
+  
+  // Update logs ref when logs change
+  useEffect(() => {
+    logsRef.current = logs;
+  }, [logs]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -175,15 +207,18 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       const deltaTime = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
 
-      // Clear canvas with fade effect
-      ctx.fillStyle = 'hsla(220, 20%, 8%, 0.1)';
+      // Clear canvas completely to prevent flashing
+      ctx.fillStyle = 'hsl(220, 20%, 8%)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Add new particles from new logs
-      logs.slice(-5).forEach(log => {
-        if (!particlesRef.current.find(p => p.id === log.id)) {
-          particlesRef.current.push(createParticle(log));
-        }
+      // Add new particles from new logs without interrupting existing ones
+      const currentLogs = logsRef.current;
+      const newLogs = currentLogs.filter(log => !particlesRef.current.find(p => p.id === log.id));
+      const recentNewLogs = newLogs.slice(-5); // Only add most recent new logs
+      
+      recentNewLogs.forEach(log => {
+        const particle = createParticle(log);
+        particlesRef.current.push(particle);
       });
 
       // Update and draw particles
@@ -196,25 +231,28 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         return particle.isAlive;
       });
 
-      // Draw center target
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
+      // Draw barrier (Logstalgia style)
+      const barrierX = canvas.width / 2;
       
-      // Outer ring
-      ctx.strokeStyle = 'hsl(var(--primary))';
-      ctx.lineWidth = 2;
+      // Vertical barrier line
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 50, 0, Math.PI * 2);
+      ctx.moveTo(barrierX, 0);
+      ctx.lineTo(barrierX, canvas.height);
       ctx.stroke();
       
-      // Inner core with glow
-      const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 20);
-      coreGradient.addColorStop(0, 'hsl(var(--primary))');
-      coreGradient.addColorStop(1, 'hsla(var(--primary), 0)');
-      ctx.fillStyle = coreGradient;
+      // Barrier glow effect
+      ctx.shadowColor = '#00ffff';
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(barrierX, 0);
+      ctx.lineTo(barrierX, canvas.height);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -227,7 +265,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [logs, createParticle, updateParticle, drawParticle]);
+  }, [createParticle, updateParticle, drawParticle]); // Removed 'logs' dependency
 
   return (
     <div className="relative w-full h-full">

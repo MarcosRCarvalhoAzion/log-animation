@@ -23,6 +23,7 @@ export interface LogParticle {
   trail: Array<{ x: number; y: number; opacity: number }>;
   isAlive: boolean;
   glowIntensity: number;
+  phase: 'moving' | 'blocked' | 'exploding';
 }
 
 export interface LogStats {
