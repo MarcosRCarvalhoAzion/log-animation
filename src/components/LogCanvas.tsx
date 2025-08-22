@@ -179,6 +179,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
 
   // Store logs in a ref to avoid useEffect dependency
   const logsRef = useRef<LogEntry[]>([]);
+  const processedLogIds = useRef<Set<string>>(new Set());
   
   // Update logs ref when logs change
   useEffect(() => {
@@ -211,12 +212,15 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       ctx.fillStyle = 'hsl(220, 20%, 8%)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Add new particles from new logs without interrupting existing ones
+      // Add particles for truly NEW logs only (never processed before)
       const currentLogs = logsRef.current;
-      const newLogs = currentLogs.filter(log => !particlesRef.current.find(p => p.id === log.id));
-      const recentNewLogs = newLogs.slice(-5); // Only add most recent new logs
+      const trulyNewLogs = currentLogs.filter(log => !processedLogIds.current.has(log.id));
       
-      recentNewLogs.forEach(log => {
+      trulyNewLogs.forEach(log => {
+        // Mark this log as processed to ensure it's never shown again
+        processedLogIds.current.add(log.id);
+        
+        // Create and add the particle
         const particle = createParticle(log);
         particlesRef.current.push(particle);
       });
