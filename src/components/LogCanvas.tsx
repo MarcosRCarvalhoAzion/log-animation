@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { LogEntry, LogParticle, FeedGlow } from '../types/log';
 import { getStatusColor } from '@/utils/logGenerator';
+import { getThemeStatusColor } from '../utils/themes';
 
 interface LogCanvasProps {
   logs: LogEntry[];
   speed: number;
   onParticleClick?: (log: LogEntry) => void;
+  theme?: string;
 }
 
-export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
+export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: LogCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
   const particlesRef = useRef<LogParticle[]>([]);
@@ -107,7 +109,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     
     // Show status when particle actually hits the barrier (only once)
     if (hasReachedBarrier && !particle.hasShownStatus) {
-      particle.color = getStatusColor(particle.log.statusCode);
+      particle.color = getThemeStatusColor(particle.log.statusCode, theme);
       particle.showingStatus = true;
       particle.statusDisplayTime = 1.0; // Show for 1 second
       particle.statusStickX = barrierX; // Stick to barrier center
@@ -367,11 +369,12 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
 
     // Add visual feedback for hovered particle (pulsing ring)
     if (hoveredParticleRef.current?.id === particle.id && opacity > 0.1) {
+      const hoverColor = theme === 'blue' ? '#00ffff' : '#F3652B';
       const time = Date.now() * 0.005;
       const pulseSize = particle.size + 8 + Math.sin(time) * 3;
       const pulseOpacity = 0.6 + Math.sin(time) * 0.3;
       
-      ctx.strokeStyle = '#00ffff' + Math.floor(Math.max(0, Math.min(255, pulseOpacity * 255))).toString(16).padStart(2, '0');
+      ctx.strokeStyle = hoverColor + Math.floor(Math.max(0, Math.min(255, pulseOpacity * 255))).toString(16).padStart(2, '0');
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, pulseSize, 0, Math.PI * 2);
@@ -380,7 +383,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
 
     // Add visual feedback for sticky hovered particle (static ring)
     if (stickyHoverInfoRef.current?.particle.id === particle.id && opacity > 0.1) {
-      ctx.strokeStyle = '#00ffff80';
+      const hoverColor = theme === 'blue' ? '#00ffff' : '#F3652B';
+      ctx.strokeStyle = hoverColor + '80';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, particle.size + 6, 0, Math.PI * 2);
@@ -394,7 +398,26 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         const dotX = particle.x + Math.cos(angle) * dotRadius;
         const dotY = particle.y + Math.sin(angle) * dotRadius;
         
-        ctx.fillStyle = '#00ffff';
+        ctx.fillStyle = hoverColor;
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Add pulsing ring for hovered particles
+    if (hoveredParticleRef.current?.id === particle.id && opacity > 0.1) {
+      const hoverColor = theme === 'blue' ? '#00ffff' : '#F3652B';
+      const time = Date.now() * 0.005;
+      const dotRadius = particle.size + 12;
+      const numDots = 8;
+      
+      for (let i = 0; i < numDots; i++) {
+        const angle = (i / numDots) * Math.PI * 2 + time;
+        const dotX = particle.x + Math.cos(angle) * dotRadius;
+        const dotY = particle.y + Math.sin(angle) * dotRadius;
+        
+        ctx.fillStyle = hoverColor;
         ctx.beginPath();
         ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
         ctx.fill();
@@ -629,8 +652,11 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       // Draw barrier (Logstalgia style)
       const barrierX = canvas.width / 2;
       
+      // Get theme-based primary color
+      const primaryColor = theme === 'blue' ? '#00ffff' : '#F3652B';
+      
       // Vertical barrier line
-      ctx.strokeStyle = '#00ffff';
+      ctx.strokeStyle = primaryColor;
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(barrierX, 0);
@@ -638,9 +664,9 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       ctx.stroke();
       
       // Barrier glow effect
-      ctx.shadowColor = '#00ffff';
+      ctx.shadowColor = primaryColor;
       ctx.shadowBlur = 10;
-      ctx.strokeStyle = '#00ffff';
+      ctx.strokeStyle = primaryColor;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(barrierX, 0);
@@ -667,7 +693,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
           const tooltipCenterX = boxX + tooltipWidth / 2;
           const tooltipCenterY = boxY + tooltipHeight / 2;
           
-          ctx.strokeStyle = '#00ffff80';
+          const lineColor = theme === 'blue' ? '#00ffff' : '#F3652B';
+          ctx.strokeStyle = lineColor + '80';
           ctx.lineWidth = 2;
           ctx.setLineDash([5, 5]);
           ctx.beginPath();

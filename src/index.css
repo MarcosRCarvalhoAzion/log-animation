@@ -7,49 +7,62 @@
 
 @layer base {
   :root {
-    /* Dark Cyber Background */
-    --background: 220 20% 8%;
-    --foreground: 180 100% 90%;
+    /* Azion Dark Background */
+    --background: 0 0% 4%; /* Much darker background */
+    --foreground: 0 0% 92%;
 
-    /* Neon Colors */
-    --neon-green: 120 100% 50%;
-    --neon-blue: 200 100% 60%;
-    --neon-red: 0 100% 60%;
-    --neon-orange: 30 100% 55%;
+    /* Azion Brand Colors */
+    --azion-orange: 16 85% 55%; /* #F3652B */
+    --azion-green: 86 58% 55%; /* #8BC249 */
+    --azion-red: 0 60% 49%; /* #C83030 */
+    --azion-dark: 0 0% 12%; /* #1E1E1E */
     --neon-cyan: 180 100% 70%;
     --neon-purple: 280 100% 70%;
 
-    /* Status Code Colors */
-    --success: 120 100% 50%;     /* 2xx - Neon Green */
-    --redirect: 200 100% 60%;    /* 3xx - Neon Blue */
-    --error: 0 100% 60%;         /* 4xx - Neon Red */
-    --server-error: 30 100% 55%; /* 5xx - Neon Orange */
+    /* Status Code Colors - Azion Palette */
+    --success: 86 58% 55%;       /* 2xx - Azion Green #8BC249 */
+    --redirect: 200 100% 60%;    /* 3xx - Blue #0080ff */
+    --error: 0 60% 49%;          /* 4xx - Azion Red #C83030 */
+    --server-error: 60 100% 50%; /* 5xx - Yellow #ffcc00 */
 
-    /* UI Components */
-    --card: 220 25% 12%;
-    --card-foreground: 180 50% 85%;
+    /* UI Components - Azion Theme */
+    --card: 0 0% 12%; /* #1E1E1E - Using Azion dark */
+    --card-foreground: 0 0% 88%;
 
-    --popover: 220 25% 15%;
-    --popover-foreground: 180 50% 90%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 92%;
 
-    --primary: 180 100% 70%;
-    --primary-foreground: 220 20% 8%;
+    --primary: 16 85% 55%; /* Azion Orange */
+    --primary-foreground: 0 0% 8%;
+  }
 
-    --secondary: 220 25% 18%;
-    --secondary-foreground: 180 50% 85%;
+  /* Blue Theme Override */
+  [data-theme="blue"] {
+    /* Status Code Colors - Blue Neon Palette */
+    --success: 160 100% 75%;      /* 2xx - Neon Green #00ff88 */
+    --redirect: 200 100% 66%;     /* 3xx - Neon Blue #00aaff */
+    --error: 340 100% 70%;        /* 4xx - Neon Pink #ff0066 */
+    --server-error: 20 100% 50%;  /* 5xx - Neon Orange #ff6600 */
 
-    --muted: 220 20% 15%;
-    --muted-foreground: 180 20% 60%;
+    /* UI Components - Blue Theme */
+    --primary: 180 100% 50%; /* Neon Cyan #00ffff */
+    --accent: 280 100% 70%;  /* Neon Purple */
 
-    --accent: 280 100% 70%;
-    --accent-foreground: 220 20% 8%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 82%;
 
-    --destructive: 0 100% 60%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 86 58% 55%; /* Azion Green */
+    --accent-foreground: 0 0% 8%;
+
+    --destructive: 0 60% 49%; /* Azion Red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 25% 20%;
-    --input: 220 25% 16%;
-    --ring: 180 100% 70%;
+    --border: 0 0% 22%;
+    --input: 0 0% 15%;
+    --ring: 16 85% 55%; /* Azion Orange */
 
     --radius: 0.5rem;
 
@@ -59,9 +72,9 @@
     --glow-lg: 0 0 40px;
     --glow-xl: 0 0 60px;
 
-    /* Gradients */
-    --gradient-cyber: linear-gradient(45deg, hsl(var(--neon-cyan)), hsl(var(--neon-purple)));
-    --gradient-matrix: linear-gradient(180deg, hsl(var(--background)), hsl(220 25% 4%));
+    /* Gradients - Azion Theme */
+    --gradient-cyber: linear-gradient(45deg, hsl(var(--azion-orange)), hsl(var(--azion-green)));
+    --gradient-matrix: linear-gradient(180deg, hsl(var(--background)), hsl(0 0% 8%));
     --gradient-particle: radial-gradient(circle, currentColor 0%, transparent 70%);
   }
 }
@@ -126,8 +139,8 @@
   }
 
   .text-glow-server-error {
-    color: hsl(var(--server-error));
-    text-shadow: var(--glow-sm) hsl(var(--server-error) / 0.8);
+    color: #ffcc00;
+    text-shadow: var(--glow-sm) #ffcc0080;
   }
 
   .text-glow-primary {
@@ -140,15 +153,15 @@
     text-shadow: var(--glow-sm) hsl(var(--accent) / 0.8);
   }
 
-  /* Cyber Grid */
+  /* Azion Grid */
   .cyber-grid {
     background-image: 
-      linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+      linear-gradient(rgba(243, 101, 43, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(243, 101, 43, 0.1) 1px, transparent 1px);
     background-size: 20px 20px;
   }
 
-  /* Scan Lines */
+  /* Scan Lines - Azion Orange */
   .scan-lines::before {
     content: '';
     position: absolute;
@@ -160,8 +173,8 @@
       0deg,
       transparent,
       transparent 2px,
-      rgba(0, 255, 255, 0.03) 2px,
-      rgba(0, 255, 255, 0.03) 4px
+      rgba(243, 101, 43, 0.03) 2px,
+      rgba(243, 101, 43, 0.03) 4px
     );
     pointer-events: none;
   }

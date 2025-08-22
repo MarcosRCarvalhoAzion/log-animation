@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { LogEntry } from '@/types/log';
-import { generateRandomLog } from '@/utils/logGenerator';
-import { LogCanvas } from '@/components/LogCanvas';
-import { LogStatsComponent } from '@/components/LogStats';
-import { LogControls } from '@/components/LogControls';
-import { LogDetails } from '@/components/LogDetails';
-import { useLogReceiver } from '@/hooks/useLogReceiver';
-import { setupLogEndpoint } from '@/utils/logEndpoint';
+import { LogEntry } from '../types/log';
+import { generateRandomLog } from '../utils/logGenerator';
+import { LogCanvas } from '../components/LogCanvas';
+import { LogControls } from '../components/LogControls';
+import { LogDetails } from '../components/LogDetails';
+import { useLogReceiver } from '../hooks/useLogReceiver';
+import { setupLogEndpoint } from '../utils/logEndpoint';
 import { toast } from 'sonner';
+import { getThemeStatusColor } from '../utils/themes';
+import { LogStatsComponent } from '../components/LogStats';
 
 const Index = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -17,6 +18,7 @@ const Index = () => {
   const [frequency, setFrequency] = useState(2.0); // requests per second
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [theme, setTheme] = useState<'azion' | 'blue'>('azion');
 
   // Setup log endpoint interceptor
   useEffect(() => {
@@ -98,10 +100,10 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="h-screen w-screen bg-background cyber-grid scan-lines relative overflow-hidden flex flex-col">
+    <div className="h-screen w-screen bg-background cyber-grid scan-lines relative overflow-hidden flex flex-col p-4 gap-4" data-theme={theme}>
       {/* Compact Header */}
-      <div className="relative z-10 border-b border-primary/20 bg-card/20 backdrop-blur-sm flex-shrink-0">
-        <div className="px-3 sm:px-4 py-2 sm:py-3">
+      <div className="relative z-10 border-b border-primary/20 bg-card/20 backdrop-blur-sm flex-shrink-0 rounded-lg">
+        <div className="px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="font-orbitron text-lg sm:text-2xl font-bold text-glow-primary">
@@ -111,23 +113,38 @@ const Index = () => {
                 Real-time HTTP log visualization • Logstalgia style
               </p>
             </div>
-            <div className="hidden lg:block">
-              <p className="font-tech text-xs text-glow-accent/70">
-                Send logs: <code className="bg-primary/10 px-1 rounded">curl -X POST {window.location.origin}/logs -d "log_line"</code>
-              </p>
+            <div className="flex items-center gap-4">
+              {/* Theme Selector */}
+              <div className="flex items-center gap-2">
+                <span className="font-tech text-xs text-glow-accent/70">Theme:</span>
+                <select 
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value as 'azion' | 'blue')}
+                  className="bg-card/50 border border-primary/20 rounded px-2 py-1 text-xs font-tech text-foreground focus:outline-none focus:border-primary/50"
+                >
+                  <option value="azion">Azion</option>
+                  <option value="blue">Blue</option>
+                </select>
+              </div>
+              <div className="hidden lg:block">
+                <p className="font-tech text-xs text-glow-accent/70">
+                  Send logs: <code className="bg-primary/10 px-1 rounded">curl -X POST {window.location.origin}/logs -d "log_line"</code>
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content - Full remaining height */}
-      <div className="relative z-10 flex-1 flex overflow-hidden">
+      <div className="relative z-10 flex-1 flex overflow-hidden rounded-lg border border-primary/20">
         {/* Canvas Area - Takes 70% of space */}
         <div className="w-[70%] bg-card/10 border-r border-primary/20 relative overflow-hidden">
           <LogCanvas 
-            logs={logs} 
-            speed={speed} 
+            logs={logs}
+            speed={speed}
             onParticleClick={handleParticleClick}
+            theme={theme}
           />
           
           {/* Status overlay */}
@@ -144,8 +161,8 @@ const Index = () => {
         </div>
 
         {/* Sidebar - 30% of horizontal space, full height */}
-        <div className="w-[30%] bg-background/50 backdrop-blur-sm border-l border-primary/20 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="w-[30%] bg-background/50 backdrop-blur-sm border-l border-primary/20 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-full">
             {/* Controls */}
             <LogControls
               isRunning={isRunning}
@@ -155,6 +172,7 @@ const Index = () => {
               onSpeedChange={handleSpeedChange}
               onFrequencyChange={handleFrequencyChange}
               onClear={handleClear}
+              theme={theme}
             />
 
             {/* Stats */}

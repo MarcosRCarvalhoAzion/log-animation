@@ -1,5 +1,8 @@
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import { Button } from './ui/button';
+import { Slider } from './ui/slider';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Play, Pause, RotateCcw } from 'lucide-react';
+import { themes } from '../utils/themes';
 
 interface LogControlsProps {
   isRunning: boolean;
@@ -9,6 +12,7 @@ interface LogControlsProps {
   onSpeedChange: (speed: number) => void;
   onFrequencyChange: (frequency: number) => void;
   onClear: () => void;
+  theme?: string;
 }
 
 export const LogControls = ({ 
@@ -18,7 +22,8 @@ export const LogControls = ({
   onToggleRunning, 
   onSpeedChange, 
   onFrequencyChange,
-  onClear 
+  onClear,
+  theme = 'azion'
 }: LogControlsProps) => {
   return (
     <div className="bg-card/30 border border-primary/20 rounded-lg p-4 backdrop-blur-sm">
@@ -90,10 +95,10 @@ export const LogControls = ({
           <div className="text-xs font-tech text-muted-foreground space-y-1">
             <div>• Hover particles for details</div>
             <div>• Click particles for more info</div>
-            <div>• <span className="text-glow-success">Green</span>: 2xx Success</div>
-            <div>• <span className="text-glow-redirect">Blue</span>: 3xx Redirect</div>
-            <div>• <span className="text-glow-error">Red</span>: 4xx Client Error</div>
-            <div>• <span className="text-glow-server-error">Orange</span>: 5xx Server Error</div>
+            <div>• <span style={{ color: themes[theme]?.colors.success || themes.azion.colors.success }}>Green</span>: 2xx Success</div>
+            <div>• <span style={{ color: themes[theme]?.colors.redirect || themes.azion.colors.redirect }}>Blue</span>: 3xx Redirect</div>
+            <div>• <span style={{ color: themes[theme]?.colors.error || themes.azion.colors.error }}>{theme === 'blue' ? 'Pink' : 'Red'}</span>: 4xx Client Error</div>
+            <div>• <span style={{ color: themes[theme]?.colors.serverError || themes.azion.colors.serverError }}>{theme === 'blue' ? 'Orange' : 'Yellow'}</span>: 5xx Server Error</div>
           </div>
         </div>
       </div>
