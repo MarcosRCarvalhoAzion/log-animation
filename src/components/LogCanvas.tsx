@@ -12,8 +12,10 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
   const particlesRef = useRef<LogParticle[]>([]);
-  const [hoveredParticle, setHoveredParticle] = useState<LogParticle | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const hoveredParticleRef = useRef<LogParticle | null>(null);
+  const mousePosRef = useRef({ x: 0, y: 0 });
+  const stickyHoverInfoRef = useRef<{ particle: LogParticle; position: { x: number; y: number } } | null>(null);
+  const [renderTrigger, setRenderTrigger] = useState(0);
 
   // URL to lane mapping
   const getUrlLane = useCallback((url: string) => {
@@ -341,7 +343,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     }
 
     // Add extra glow for hovered particle or explosion
-    if ((hoveredParticle?.id === particle.id || particle.phase === 'exploding') && opacity > 0.1) {
+    if ((hoveredParticleRef.current?.id === particle.id || particle.phase === 'exploding') && opacity > 0.1) {
       const extraGlowSize = particle.phase === 'exploding' ? particleSize * 1.5 : particle.size + 2;
       ctx.shadowColor = particle.color;
       ctx.shadowBlur = particle.phase === 'exploding' ? 40 : 20;
@@ -351,7 +353,43 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       ctx.fill();
       ctx.shadowBlur = 0;
     }
-  }, [hoveredParticle]);
+
+    // Add visual feedback for hovered particle (pulsing ring)
+    if (hoveredParticleRef.current?.id === particle.id && opacity > 0.1) {
+      const time = Date.now() * 0.005;
+      const pulseSize = particle.size + 8 + Math.sin(time) * 3;
+      const pulseOpacity = 0.6 + Math.sin(time) * 0.3;
+      
+      ctx.strokeStyle = '#00ffff' + Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0');
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, pulseSize, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Add visual feedback for sticky hovered particle (static ring)
+    if (stickyHoverInfoRef.current?.particle.id === particle.id && opacity > 0.1) {
+      ctx.strokeStyle = '#00ffff80';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size + 6, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Add small dots around the particle
+      const dotCount = 8;
+      const dotRadius = particle.size + 10;
+      for (let i = 0; i < dotCount; i++) {
+        const angle = (i / dotCount) * Math.PI * 2;
+        const dotX = particle.x + Math.cos(angle) * dotRadius;
+        const dotY = particle.y + Math.sin(angle) * dotRadius;
+        
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }, []);
 
   // Separate function to draw status boxes on top
   const drawStatusBoxes = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -393,6 +431,54 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     });
   }, []);
 
+  // Smart positioning function to avoid blocking particle path
+  const getOptimalTooltipPosition = useCallback((particle: LogParticle, mouseX: number, mouseY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: mouseX + 10, y: mouseY - 60 };
+
+    const rect = canvas.getBoundingClientRect();
+    const tooltipWidth = 300;
+    const tooltipHeight = 100;
+    const margin = 20;
+    
+    // Particle's current lane and path
+    const particleLaneY = particle.y;
+    const particleStartX = -20;
+    const particleEndX = particle.targetX;
+    
+    // Available positions (priority order)
+    const positions = [
+      // Above particle path
+      { x: mouseX + 10, y: particleLaneY - tooltipHeight - margin, priority: 1 },
+      // Below particle path
+      { x: mouseX + 10, y: particleLaneY + margin, priority: 2 },
+      // Left side (if particle hasn't passed)
+      { x: Math.max(margin, particleStartX - tooltipWidth - margin), y: particleLaneY - tooltipHeight / 2, priority: 3 },
+      // Right side (if space available)
+      { x: Math.min(window.innerWidth - tooltipWidth - margin, particleEndX + margin), y: particleLaneY - tooltipHeight / 2, priority: 4 },
+      // Top-left corner
+      { x: margin, y: margin, priority: 5 },
+      // Top-right corner
+      { x: window.innerWidth - tooltipWidth - margin, y: margin, priority: 6 },
+      // Bottom-left corner
+      { x: margin, y: window.innerHeight - tooltipHeight - margin, priority: 7 },
+      // Bottom-right corner
+      { x: window.innerWidth - tooltipWidth - margin, y: window.innerHeight - tooltipHeight - margin, priority: 8 }
+    ];
+    
+    // Filter positions that fit within viewport
+    const validPositions = positions.filter(pos => 
+      pos.x >= margin && 
+      pos.x + tooltipWidth <= window.innerWidth - margin &&
+      pos.y >= margin && 
+      pos.y + tooltipHeight <= window.innerHeight - margin
+    );
+    
+    // Return the highest priority valid position
+    const bestPosition = validPositions.sort((a, b) => a.priority - b.priority)[0];
+    return bestPosition || { x: mouseX + 10, y: mouseY - 60 };
+  }, []);
+
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -401,7 +487,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     
-    setMousePos({ x: event.clientX, y: event.clientY });
+    mousePosRef.current = { x: event.clientX, y: event.clientY };
 
     // Check for particle hover
     const hoveredParticle = particlesRef.current.find(particle => {
@@ -409,14 +495,25 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       return distance <= particle.size + 5;
     });
 
-    setHoveredParticle(hoveredParticle || null);
-  }, []);
+    hoveredParticleRef.current = hoveredParticle || null;
+    
+    // Update sticky hover info when hovering a new particle
+    if (hoveredParticle && (!stickyHoverInfoRef.current || stickyHoverInfoRef.current.particle.id !== hoveredParticle.id)) {
+      const optimalPos = getOptimalTooltipPosition(hoveredParticle, event.clientX, event.clientY);
+      const newStickyInfo = {
+        particle: hoveredParticle,
+        position: optimalPos
+      };
+      stickyHoverInfoRef.current = newStickyInfo;
+      setRenderTrigger(prev => prev + 1);
+    }
+  }, [getOptimalTooltipPosition]);
 
   const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (hoveredParticle && onParticleClick) {
-      onParticleClick(hoveredParticle.log);
+    if (hoveredParticleRef.current && onParticleClick) {
+      onParticleClick(hoveredParticleRef.current.log);
     }
-  }, [hoveredParticle, onParticleClick]);
+  }, [onParticleClick]);
 
   // Store logs in a ref to avoid useEffect dependency
   const logsRef = useRef<LogEntry[]>([]);
@@ -479,6 +576,12 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         updateFeedGlow(glow, deltaTime);
       });
       
+      // Check if sticky hover particle is still alive
+      if (stickyHoverInfoRef.current && !particlesRef.current.find(p => p.id === stickyHoverInfoRef.current.particle.id)) {
+        stickyHoverInfoRef.current = null;
+        setRenderTrigger(prev => prev + 1);
+      }
+      
       // Remove dead particles and glows
       particlesRef.current = particlesRef.current.filter(p => p.isAlive);
       feedGlows.current = feedGlows.current.filter(g => g.isAlive);
@@ -536,9 +639,31 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       feedGlows.current.forEach(glow => {
         drawFeedGlow(ctx, glow);
       });
-      
-      // Draw status boxes on top of everything
-      drawStatusBoxes(ctx);
+
+      // Draw connecting line from sticky hover box to particle
+      if (stickyHoverInfoRef.current) {
+        const stickyParticle = particlesRef.current.find(p => p.id === stickyHoverInfoRef.current.particle.id);
+        if (stickyParticle) {
+          const rect = canvas.getBoundingClientRect();
+          const boxX = stickyHoverInfoRef.current.position.x - rect.left;
+          const boxY = stickyHoverInfoRef.current.position.y - rect.top;
+          
+          // Always connect from center of tooltip box
+          const tooltipWidth = 300;
+          const tooltipHeight = 100;
+          const tooltipCenterX = boxX + tooltipWidth / 2;
+          const tooltipCenterY = boxY + tooltipHeight / 2;
+          
+          ctx.strokeStyle = '#00ffff80';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.moveTo(tooltipCenterX, tooltipCenterY);
+          ctx.lineTo(stickyParticle.x, stickyParticle.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
       
       // Draw request counters
       const counterY = 30;
@@ -579,6 +704,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       ctx.textAlign = 'right';
       ctx.fillText(`PASSED: ${passedCount.current}`, canvas.width - 20, canvas.height / 2);
       
+      drawStatusBoxes(ctx);
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -591,7 +717,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [createParticle, updateParticle, drawParticle, drawStatusBoxes]); // Removed 'logs' dependency
+  }, [createParticle, updateParticle, drawParticle, drawStatusBoxes, drawFeedGlow, updateFeedGlow]); // Removed 'logs' dependency
 
   return (
     <div className="relative w-full h-full">
@@ -602,28 +728,55 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
         onClick={handleClick}
       />
       
-      {/* Tooltip */}
-      {hoveredParticle && (
+      {/* Sticky Hover Tooltip */}
+      {stickyHoverInfoRef.current && (
         <div 
-          className="fixed z-50 bg-card border border-primary/30 rounded-lg p-3 text-sm pointer-events-none glow-primary"
+          className="fixed z-50 bg-card border border-primary/30 rounded-lg p-3 text-sm pointer-events-none glow-primary shadow-lg"
           style={{
-            left: mousePos.x + 10,
-            top: mousePos.y - 60,
+            left: stickyHoverInfoRef.current.position.x + 10,
+            top: stickyHoverInfoRef.current.position.y - 60,
             maxWidth: '300px'
           }}
         >
           <div className="space-y-1">
             <div className="font-orbitron text-glow-primary font-bold">
-              {hoveredParticle.log.method} {hoveredParticle.log.statusCode}
+              {stickyHoverInfoRef.current.particle.log.method} {stickyHoverInfoRef.current.particle.log.statusCode}
             </div>
             <div className="text-foreground/80">
-              <span className="text-glow-accent">IP:</span> {hoveredParticle.log.ip}
+              <span className="text-glow-accent">IP:</span> {stickyHoverInfoRef.current.particle.log.ip}
             </div>
             <div className="text-foreground/80">
-              <span className="text-glow-accent">URL:</span> {hoveredParticle.log.url}
+              <span className="text-glow-accent">URL:</span> {stickyHoverInfoRef.current.particle.log.url}
             </div>
             <div className="text-foreground/80 text-xs">
-              {hoveredParticle.log.timestamp.toLocaleTimeString()}
+              {stickyHoverInfoRef.current.particle.log.timestamp.toLocaleTimeString()}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Regular Hover Tooltip (only when no sticky info) */}
+      {hoveredParticleRef.current && !stickyHoverInfoRef.current && (
+        <div 
+          className="fixed z-50 bg-card border border-primary/30 rounded-lg p-3 text-sm pointer-events-none glow-primary opacity-80"
+          style={{
+            left: mousePosRef.current.x + 10,
+            top: mousePosRef.current.y - 60,
+            maxWidth: '300px'
+          }}
+        >
+          <div className="space-y-1">
+            <div className="font-orbitron text-glow-primary font-bold">
+              {hoveredParticleRef.current.log.method} {hoveredParticleRef.current.log.statusCode}
+            </div>
+            <div className="text-foreground/80">
+              <span className="text-glow-accent">IP:</span> {hoveredParticleRef.current.log.ip}
+            </div>
+            <div className="text-foreground/80">
+              <span className="text-glow-accent">URL:</span> {hoveredParticleRef.current.log.url}
+            </div>
+            <div className="text-foreground/80 text-xs">
+              {hoveredParticleRef.current.log.timestamp.toLocaleTimeString()}
             </div>
           </div>
         </div>
