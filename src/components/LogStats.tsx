@@ -4,9 +4,10 @@ import { useMemo } from 'react';
 
 interface LogStatsProps {
   logs: LogEntry[];
+  totalRequestsGenerated: number;
 }
 
-export const LogStatsComponent = ({ logs }: LogStatsProps) => {
+export const LogStatsComponent = ({ logs, totalRequestsGenerated }: LogStatsProps) => {
   const stats = useMemo((): LogStats => {
     const statusCounts = { '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0 };
     const ipCounts = new Map<string, number>();
@@ -43,13 +44,13 @@ export const LogStatsComponent = ({ logs }: LogStatsProps) => {
       .map(([url, count]) => ({ url, count }));
 
     return {
-      totalRequests: logs.length,
+      totalRequests: totalRequestsGenerated,
       statusCounts,
       requestsPerSecond,
       topIPs,
       topUrls
     };
-  }, [logs]);
+  }, [logs, totalRequestsGenerated]);
 
   return (
     <div className="bg-card/30 border border-primary/20 rounded-lg p-4 backdrop-blur-sm">

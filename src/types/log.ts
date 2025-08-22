@@ -30,6 +30,7 @@ export interface LogParticle {
   statusStickX: number;
   statusStartY: number;
   statusCurrentY: number;
+  hasShownStatus: boolean;
 }
 
 export interface FeedGlow {

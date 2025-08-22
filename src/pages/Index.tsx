@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 const Index = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [totalRequestsGenerated, setTotalRequestsGenerated] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [frequency, setFrequency] = useState(2.0); // requests per second
@@ -24,6 +25,7 @@ const Index = () => {
 
   // Handle new logs from external sources
   const handleNewExternalLog = useCallback((newLog: LogEntry) => {
+    setTotalRequestsGenerated(prev => prev + 1);
     setLogs(prev => {
       const updated = [...prev, newLog];
       return updated.slice(-1000);
@@ -42,6 +44,7 @@ const Index = () => {
 
     const interval = setInterval(() => {
       const newLog = generateRandomLog();
+      setTotalRequestsGenerated(prev => prev + 1);
       setLogs(prev => {
         const updated = [...prev, newLog];
         // Keep only last 1000 logs for performance
@@ -78,6 +81,7 @@ const Index = () => {
 
   const handleClear = useCallback(() => {
     setLogs([]);
+    setTotalRequestsGenerated(0);
     toast('Logs cleared', {
       description: 'All log entries have been removed'
     });
@@ -133,7 +137,7 @@ const Index = () => {
                 isRunning ? 'bg-status-success glow-success' : 'bg-status-error glow-error'
               }`} />
               <span className="font-tech text-xs text-glow-primary">
-                {isRunning ? 'LIVE' : 'PAUSED'} • {logs.length} logs
+                {isRunning ? 'LIVE' : 'PAUSED'} • {totalRequestsGenerated.toLocaleString()} requests
               </span>
             </div>
           </div>
@@ -154,7 +158,7 @@ const Index = () => {
             />
 
             {/* Stats */}
-            <LogStatsComponent logs={logs} />
+            <LogStatsComponent logs={logs} totalRequestsGenerated={totalRequestsGenerated} />
           </div>
         </div>
       </div>

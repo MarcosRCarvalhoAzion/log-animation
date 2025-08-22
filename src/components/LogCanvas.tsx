@@ -76,7 +76,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       statusDisplayTime: 0,
       statusStickX: 0,
       statusStartY: 0,
-      statusCurrentY: 0
+      statusCurrentY: 0,
+      hasShownStatus: false
     };
   }, [speed, getUrlLane]);
 
@@ -101,17 +102,18 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
     // Move horizontally (left to right) - apply current speed multiplier
     particle.x += particle.speed * speedRef.current * deltaTime * 100;
     
-    // Check if particle is in barrier zone
-    const inBarrierZone = Math.abs(particle.x - barrierX) < barrierZone;
+    // Check if particle has reached the barrier
+    const hasReachedBarrier = particle.x >= barrierX && particle.phase === 'moving';
     
-    // Colorize and show status when approaching/passing barrier
-    if (inBarrierZone && !particle.showingStatus) {
+    // Show status when particle actually hits the barrier (only once)
+    if (hasReachedBarrier && !particle.hasShownStatus) {
       particle.color = getStatusColor(particle.log.statusCode);
       particle.showingStatus = true;
       particle.statusDisplayTime = 1.0; // Show for 1 second
       particle.statusStickX = barrierX; // Stick to barrier center
       particle.statusStartY = particle.y - particle.size - 8;
       particle.statusCurrentY = particle.statusStartY;
+      particle.hasShownStatus = true; // Mark as shown to prevent re-triggering
     }
     
     // Update status display timer and position
@@ -125,14 +127,8 @@ export const LogCanvas = ({ logs, speed, onParticleClick }: LogCanvasProps) => {
       }
     }
     
-    // Keep status visible for 1 second after explosion starts
-    if (particle.phase === 'exploding' && !particle.showingStatus && particle.glowIntensity > 0.8) {
-      particle.showingStatus = true;
-      particle.statusDisplayTime = 1.0;
-      particle.statusStickX = barrierX;
-      particle.statusStartY = particle.y - particle.size - 8;
-      particle.statusCurrentY = particle.statusStartY;
-    }
+    // Remove the duplicate status display logic for exploding particles
+    // Status is already shown once when particle reaches barrier
     
     // Add current position to trail
     particle.trail.push({ 
