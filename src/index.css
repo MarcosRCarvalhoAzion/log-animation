@@ -208,6 +208,60 @@
     }
   }
 
+  @keyframes scan-line {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100vw); }
+  }
+
+  @keyframes taillog-fade-in {
+  0% { 
+    opacity: 0;
+    background-color: rgba(var(--primary), 0.2);
+  }
+  50% {
+    background-color: rgba(var(--primary), 0.1);
+  }
+  100% { 
+    opacity: 1;
+    background-color: transparent;
+  }
+}
+
+@keyframes taillog-pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 5px rgba(var(--primary), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(var(--primary), 0.6);
+  }
+}
+
+  @keyframes fade-in-highlight {
+    0% { 
+      background-color: rgba(var(--primary), 0.4);
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    50% {
+      background-color: rgba(var(--primary), 0.3);
+      opacity: 1;
+    }
+    100% { 
+      background-color: transparent;
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes push-down {
+    0% { 
+      transform: translateY(-10px);
+    }
+    100% { 
+      transform: translateY(0);
+    }
+  }
+
   /* Cyber Button */
   .cyber-button {
     background: linear-gradient(45deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.1));

@@ -148,6 +148,8 @@ export default {
 				'particle-trail': 'particle-trail 0.5s ease-out forwards',
 				'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
 				'scan-line': 'scan-line 3s linear infinite',
+				'taillog-fade-in': 'taillog-fade-in 0.6s ease-out forwards',
+				'taillog-pulse-glow': 'taillog-pulse-glow 2s ease-in-out infinite',
 				'matrix-rain': 'matrix-rain 2s linear infinite'
 			},
 			fontFamily: {

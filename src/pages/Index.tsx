@@ -9,6 +9,7 @@ import { setupLogEndpoint } from '../utils/logEndpoint';
 import { toast } from 'sonner';
 import { getThemeStatusColor } from '../utils/themes';
 import { LogStatsComponent } from '../components/LogStats';
+import { LogTaillog } from '../components/LogTaillog';
 
 const Index = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -19,6 +20,7 @@ const Index = () => {
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [theme, setTheme] = useState<'azion' | 'blue'>('azion');
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
   // Setup log endpoint interceptor
   useEffect(() => {
@@ -99,6 +101,22 @@ const Index = () => {
     setSelectedLog(null);
   }, []);
 
+  const handleLogSelect = useCallback((logId: string | null) => {
+    setSelectedLogId(logId);
+  }, []);
+
+  const handleTaillogClick = useCallback((log: LogEntry) => {
+    if (selectedLogId === log.id) {
+      // Second click - open details
+      setSelectedLog(log);
+      setIsDetailsOpen(true);
+      setSelectedLogId(null); // Clear selection after opening details
+    } else {
+      // First click - select/highlight
+      setSelectedLogId(log.id);
+    }
+  }, [selectedLogId]);
+
   return (
     <div className="h-screen w-screen bg-background cyber-grid scan-lines relative overflow-hidden flex flex-col p-4 gap-4" data-theme={theme}>
       {/* Compact Header */}
@@ -144,6 +162,8 @@ const Index = () => {
             logs={logs}
             speed={speed}
             onParticleClick={handleParticleClick}
+            onParticleHover={handleLogSelect}
+            hoveredLogId={selectedLogId}
             theme={theme}
           />
           
@@ -177,6 +197,14 @@ const Index = () => {
 
             {/* Stats */}
             <LogStatsComponent logs={logs} totalRequestsGenerated={totalRequestsGenerated} />
+
+            {/* Taillog */}
+            <LogTaillog 
+              logs={logs} 
+              theme={theme} 
+              hoveredLogId={selectedLogId}
+              onLogClick={handleTaillogClick}
+            />
           </div>
         </div>
       </div>

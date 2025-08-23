@@ -7,10 +7,12 @@ interface LogCanvasProps {
   logs: LogEntry[];
   speed: number;
   onParticleClick?: (log: LogEntry) => void;
+  onParticleHover?: (logId: string | null) => void;
+  hoveredLogId?: string | null;
   theme?: string;
 }
 
-export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: LogCanvasProps) => {
+export const LogCanvas = ({ logs, speed, onParticleClick, onParticleHover, hoveredLogId, theme = 'azion' }: LogCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
   const particlesRef = useRef<LogParticle[]>([]);
@@ -355,8 +357,12 @@ export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: Log
       ctx.fill();
     }
 
-    // Add extra glow for hovered particle or explosion
-    if ((hoveredParticleRef.current?.id === particle.id || particle.phase === 'exploding') && opacity > 0.1) {
+    // Add extra glow for hovered particle (mouse hover or external hover) or explosion
+    const isMouseHovered = hoveredParticleRef.current?.id === particle.id;
+    const isExternalHovered = hoveredLogId === particle.log.id;
+    const isHovered = isMouseHovered || isExternalHovered;
+    
+    if ((isHovered || particle.phase === 'exploding') && opacity > 0.1) {
       const extraGlowSize = particle.phase === 'exploding' ? particleSize * 1.5 : particle.size + 2;
       ctx.shadowColor = particle.color;
       ctx.shadowBlur = particle.phase === 'exploding' ? 40 : 20;
@@ -531,7 +537,12 @@ export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: Log
 
     hoveredParticleRef.current = hoveredParticle || null;
     
-    // Update sticky hover info when hovering a new particle
+    // Emit hover event to parent
+    if (onParticleHover) {
+      onParticleHover(hoveredParticle?.log.id || null);
+    }
+    
+    // Update sticky hover info when hovering a new particle (but keep existing if no particle hovered)
     if (hoveredParticle && (!stickyHoverInfoRef.current || stickyHoverInfoRef.current.particle.id !== hoveredParticle.id)) {
       const optimalPos = getOptimalTooltipPosition(hoveredParticle, event.clientX, event.clientY);
       const newStickyInfo = {
@@ -541,6 +552,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: Log
       stickyHoverInfoRef.current = newStickyInfo;
       setRenderTrigger(prev => prev + 1);
     }
+    // Don't clear sticky hover info when no particle is hovered - let it persist
   }, [getOptimalTooltipPosition]);
 
   const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -548,8 +560,24 @@ export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: Log
       // Store the log data immediately to avoid reference issues when particle vanishes
       const logData = { ...hoveredParticleRef.current.log };
       onParticleClick(logData);
+    } else {
+      // Click outside particles - clear sticky hover info
+      stickyHoverInfoRef.current = null;
+      setRenderTrigger(prev => prev + 1);
     }
   }, [onParticleClick]);
+
+  const handleMouseLeave = useCallback(() => {
+    // Clear particle hover state but keep sticky hover info (tooltip persists)
+    hoveredParticleRef.current = null;
+    
+    // Emit null hover event to parent
+    if (onParticleHover) {
+      onParticleHover(null);
+    }
+    
+    setRenderTrigger(prev => prev + 1);
+  }, [onParticleHover]);
 
   // Store logs in a ref to avoid useEffect dependency
   const logsRef = useRef<LogEntry[]>([]);
@@ -558,9 +586,33 @@ export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: Log
   const passedCount = useRef<number>(0);
   const feedGlows = useRef<FeedGlow[]>([]);
   
+  // Handle external hover to show tooltip
+  useEffect(() => {
+    if (hoveredLogId) {
+      // Find the particle that matches the hovered log ID
+      const matchedParticle = particlesRef.current.find(p => p.log.id === hoveredLogId);
+      if (matchedParticle) {
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const optimalPos = getOptimalTooltipPosition(matchedParticle, centerX, centerY);
+        stickyHoverInfoRef.current = {
+          particle: matchedParticle,
+          position: optimalPos
+        };
+        setRenderTrigger(prev => prev + 1);
+      }
+    }
+    // Don't clear tooltip when hoveredLogId becomes null - let it persist
+  }, [hoveredLogId, getOptimalTooltipPosition]);
+
   // Update logs ref when logs change
   useEffect(() => {
     logsRef.current = logs;
+  }, [logs]);
+
+  // Animation loop
+  useEffect(() => {
+    if (!canvasRef.current) return;
   }, [logs]);
 
   useEffect(() => {
@@ -765,6 +817,7 @@ export const LogCanvas = ({ logs, speed, onParticleClick, theme = 'azion' }: Log
         ref={canvasRef}
         className="w-full h-full cursor-crosshair"
         onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         onClick={handleClick}
       />
       
