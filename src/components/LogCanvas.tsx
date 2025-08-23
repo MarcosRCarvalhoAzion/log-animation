@@ -10,9 +10,10 @@ interface LogCanvasProps {
   onParticleHover?: (logId: string | null) => void;
   hoveredLogId?: string | null;
   theme?: string;
+  onClear?: () => void;
 }
 
-export const LogCanvas = ({ logs, speed, onParticleClick, onParticleHover, hoveredLogId, theme = 'azion' }: LogCanvasProps) => {
+export const LogCanvas = ({ logs, speed, onParticleClick, onParticleHover, hoveredLogId, theme = 'azion', onClear }: LogCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
   const particlesRef = useRef<LogParticle[]>([]);
@@ -585,6 +586,22 @@ export const LogCanvas = ({ logs, speed, onParticleClick, onParticleHover, hover
   const blockedCount = useRef<number>(0);
   const passedCount = useRef<number>(0);
   const feedGlows = useRef<FeedGlow[]>([]);
+  
+  // Reset counters when clear is called
+  useEffect(() => {
+    if (onClear) {
+      const resetCounters = () => {
+        blockedCount.current = 0;
+        passedCount.current = 0;
+        particlesRef.current = [];
+        feedGlows.current = [];
+        processedLogIds.current.clear();
+      };
+      
+      // Store the reset function globally so it can be called
+      (window as unknown as { resetCanvasCounters?: () => void }).resetCanvasCounters = resetCounters;
+    }
+  }, [onClear]);
   
   // Handle external hover to show tooltip
   useEffect(() => {

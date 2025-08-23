@@ -84,10 +84,23 @@ const Index = () => {
   }, []);
 
   const handleClear = useCallback(() => {
+    // Reset all application state
     setLogs([]);
     setTotalRequestsGenerated(0);
-    toast('Logs cleared', {
-      description: 'All log entries have been removed'
+    setSelectedLog(null);
+    setSelectedLogId(null);
+    setIsDetailsOpen(false);
+    
+    // Stop the log stream
+    setIsRunning(false);
+    
+    // Reset canvas counters (BLOCKED/PASSED)
+    if ((window as unknown as { resetCanvasCounters?: () => void }).resetCanvasCounters) {
+      (window as unknown as { resetCanvasCounters?: () => void }).resetCanvasCounters!();
+    }
+    
+    toast('Application reset', {
+      description: 'All logs, counters, and selections have been cleared'
     });
   }, []);
 
@@ -165,6 +178,7 @@ const Index = () => {
             onParticleHover={handleLogSelect}
             hoveredLogId={selectedLogId}
             theme={theme}
+            onClear={handleClear}
           />
           
           {/* Status overlay */}
