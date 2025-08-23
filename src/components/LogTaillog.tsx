@@ -143,7 +143,7 @@ export const LogTaillog = ({ logs, theme = 'azion', hoveredLogId, onLogClick }: 
         />
         
         {/* Method */}
-        <span className="text-glow-primary font-orbitron text-[10px] w-6 flex-shrink-0">
+        <span className="text-glow-primary font-orbitron text-[10px] w-10 flex-shrink-0">
           {log.method}
         </span>
         
