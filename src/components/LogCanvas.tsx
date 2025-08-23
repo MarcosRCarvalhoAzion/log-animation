@@ -28,13 +28,56 @@ export const LogCanvas = ({ logs, speed, onParticleClick, onParticleHover, hover
     speedRef.current = speed;
   }, [speed]);
 
-  // URL to lane mapping
+  // URL to lane mapping - fixed mapping to match display order
   const getUrlLane = useCallback((url: string) => {
     const baseUrl = url.split('?')[0]; // Remove query params
+    
+    // Fixed mapping to match the lane labels displayed on canvas
+    const urlToLaneMap: { [key: string]: number } = {
+      '/api/users': 0,
+      '/api/products': 1,
+      '/api/orders': 2,
+      '/dashboard': 3,
+      '/login': 4,
+      '/api/analytics': 5,
+      '/static/css': 6,
+      '/api/reports': 7,
+      // Additional mappings for common URLs
+      '/logout': 4,           // Maps to /login lane
+      '/profile': 3,          // Maps to /dashboard lane
+      '/settings': 3,         // Maps to /dashboard lane
+      '/help': 3,             // Maps to /dashboard lane
+      '/api/search': 5,       // Maps to /api/analytics lane
+      '/api/notifications': 5, // Maps to /api/analytics lane
+      '/static/css/main.css': 6, // Maps to /static/* lane
+      '/static/js/app.js': 6,    // Maps to /static/* lane
+      '/favicon.ico': 6,         // Maps to /static/* lane
+      '/api/upload': 7,          // Maps to /api/reports lane
+      '/api/download': 7         // Maps to /api/reports lane
+    };
+    
+    // Check for exact match first
+    if (urlToLaneMap[baseUrl] !== undefined) {
+      return urlToLaneMap[baseUrl];
+    }
+    
+    // Check for static files first (special case)
+    if (baseUrl.startsWith('/static/')) {
+      return 6; // All static files go to /static/* lane
+    }
+    
+    // Check for partial matches (e.g., /api/users/123 -> /api/users)
+    for (const [pattern, lane] of Object.entries(urlToLaneMap)) {
+      if (baseUrl.startsWith(pattern)) {
+        return lane;
+      }
+    }
+    
+    // Fallback to hash-based assignment for unknown URLs
     const urlHash = baseUrl.split('').reduce((hash, char) => {
       return ((hash << 5) - hash + char.charCodeAt(0)) & 0xffffffff;
     }, 0);
-    return Math.abs(urlHash) % 8; // 8 lanes
+    return Math.abs(urlHash) % 8;
   }, []);
 
   const createParticle = useCallback((log: LogEntry): LogParticle => {
@@ -708,14 +751,14 @@ export const LogCanvas = ({ logs, speed, onParticleClick, onParticleHover, hover
         ctx.stroke();
       }
       
-      // Draw lane labels
+      // Draw lane labels - updated to match URL mapping
       ctx.fillStyle = '#666666';
       ctx.font = '10px monospace';
       ctx.textAlign = 'left';
-      const sampleUrls = ['/api/users', '/api/products', '/api/orders', '/dashboard', '/login', '/api/analytics', '/static/css', '/api/reports'];
+      const laneLabels = ['/api/users', '/api/products', '/api/orders', '/dashboard', '/login', '/api/analytics', '/static/*', '/api/reports'];
       for (let i = 0; i < 8; i++) {
         const y = (i * laneHeight) + (laneHeight / 2) + 3;
-        ctx.fillText(sampleUrls[i] || `/lane-${i}`, 10, y);
+        ctx.fillText(laneLabels[i] || `/lane-${i}`, 10, y);
       }
 
       // Draw barrier (Logstalgia style)
