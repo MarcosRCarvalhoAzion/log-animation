@@ -216,14 +216,17 @@
   @keyframes taillog-fade-in {
   0% { 
     opacity: 0;
-    background-color: rgba(var(--primary), 0.2);
+    border-left: 3px solid rgba(var(--primary), 0.8);
+    box-shadow: 0 0 8px rgba(var(--primary), 0.2);
   }
   50% {
-    background-color: rgba(var(--primary), 0.1);
+    border-left: 2px solid rgba(var(--primary), 0.4);
+    box-shadow: 0 0 4px rgba(var(--primary), 0.1);
   }
   100% { 
     opacity: 1;
-    background-color: transparent;
+    border-left: 1px solid rgba(var(--primary), 0.1);
+    box-shadow: none;
   }
 }
 

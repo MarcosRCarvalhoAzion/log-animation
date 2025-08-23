@@ -115,10 +115,10 @@ export const LogTaillog = ({ logs, theme = 'azion', hoveredLogId, onLogClick }: 
     return (
       <div 
         key={log.id} 
-        className={`flex items-center space-x-2 text-xs font-tech py-1 px-2 rounded transition-colors cursor-pointer ${
+        className={`flex items-center space-x-2 text-xs font-tech py-1 px-2 rounded transition-colors cursor-pointer border-l ${
           isNewEntry && !isPinned
             ? 'animate-taillog-fade-in' 
-            : ''
+            : 'border-l-transparent'
         } ${
           hoveredLogId === log.id 
             ? isPinned 
