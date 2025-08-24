@@ -1,36 +1,36 @@
 {
-  "name": "neon-log-stream",
-  "bucket": "neon-log-stream",
+  "name": "log-animation",
+  "bucket": "log-animation",
   "preset": "react",
   "env": "production",
-  "prefix": "20250819012036",
+  "prefix": "20250824030923",
   "not-first-run": true,
   "function": {
-    "id": 48959,
+    "id": 49266,
     "name": "__DEFAULT__",
     "file": ".edge/worker.js",
     "args": "azion/args.json",
-    "instance-id": 44248,
+    "instance-id": 44378,
     "instance-name": "__DEFAULT__",
     "cache-id": 0
   },
   "application": {
-    "id": 1755562134,
+    "id": 1756003905,
     "name": "__DEFAULT__"
   },
   "domain": {
-    "id": 1755562902,
-    "name": "neon-log-stream",
-    "domain_name": "gauna7hh0j.map.azionedge.net",
-    "url": "https://gauna7hh0j.map.azionedge.net"
+    "id": 1756003452,
+    "name": "log-animation",
+    "domain_name": "r6cuwg49gw.map.azionedge.net",
+    "url": "https://r6cuwg49gw.map.azionedge.net"
   },
   "rt-purge": {
     "purge_on_publish": true
   },
   "origin": [
     {
-      "origin-id": 239369,
-      "origin-key": "2e2c7161-02bc-43b9-a2a3-ad6951f6cff1",
+      "origin-id": 241171,
+      "origin-key": "51a78833-8194-4ab7-a8fd-f42b0d94869b",
       "name": "origin-storage-default"
     }
   ],
@@ -38,17 +38,17 @@
     "created": false,
     "rules": [
       {
-        "id": 467064,
+        "id": 469645,
         "name": "Set Storage Origin for All Requests",
         "phase": "request"
       },
       {
-        "id": 467065,
+        "id": 469646,
         "name": "Deliver Static Assets",
         "phase": "request"
       },
       {
-        "id": 467066,
+        "id": 469647,
         "name": "Redirect to index.html",
         "phase": "request"
       }
