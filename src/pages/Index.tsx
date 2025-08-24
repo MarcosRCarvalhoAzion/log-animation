@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { getThemeStatusColor } from '../utils/themes';
 import { LogStatsComponent } from '../components/LogStats';
 import { LogTaillog } from '../components/LogTaillog';
+import { ConnectionStatus } from '../components/ConnectionStatus';
 
 const Index = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -21,6 +22,8 @@ const Index = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [theme, setTheme] = useState<'azion' | 'blue'>('azion');
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const [websocketUrl, setWebsocketUrl] = useState<string>('');
+  const [enableWebSocket, setEnableWebSocket] = useState<boolean>(true);
 
   // Setup log endpoint interceptor
   useEffect(() => {
@@ -34,17 +37,22 @@ const Index = () => {
       const updated = [...prev, newLog];
       return updated.slice(-1000);
     });
-    toast('External log received', {
+    toast('Log received', {
       description: `${newLog.method} ${newLog.url} - ${newLog.statusCode}`
     });
   }, []);
 
-  // Use log receiver hook
-  useLogReceiver({ onNewLog: handleNewExternalLog });
+  // Use log receiver hook with Azion Edge Function support
+  const logReceiver = useLogReceiver({ 
+    onNewLog: handleNewExternalLog,
+    websocketUrl: websocketUrl || undefined,
+    enableWebSocket,
+    useAzionEndpoint: true // Enable Azion Edge Function by default
+  });
 
-  // Generate logs in real-time
+  // Generate logs in real-time (only when WebSocket is disabled)
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning || enableWebSocket) return;
 
     const interval = setInterval(() => {
       const newLog = generateRandomLog();
@@ -57,17 +65,20 @@ const Index = () => {
     }, Math.max(50, 1000 / frequency)); // frequency controls requests per second
 
     return () => clearInterval(interval);
-  }, [isRunning, frequency]);
+  }, [isRunning, frequency, enableWebSocket]);
 
   const handleToggleRunning = useCallback(() => {
     setIsRunning(prev => {
       const newState = !prev;
-      toast(newState ? 'Log stream started' : 'Log stream paused', {
-        description: newState ? 'Real-time logs are now flowing' : 'Log generation paused'
+      const mode = enableWebSocket ? 'WebSocket' : 'Mock';
+      toast(newState ? `${mode} log stream started` : `${mode} log stream paused`, {
+        description: newState 
+          ? (enableWebSocket ? 'Waiting for WebSocket logs...' : 'Generating mock logs') 
+          : 'Log processing paused'
       });
       return newState;
     });
-  }, []);
+  }, [enableWebSocket]);
 
   const handleSpeedChange = useCallback((newSpeed: number) => {
     setSpeed(newSpeed);
@@ -157,10 +168,18 @@ const Index = () => {
                   <option value="blue">Blue</option>
                 </select>
               </div>
-              <div className="hidden lg:block">
-                <p className="font-tech text-xs text-glow-accent/70">
-                  Send logs: <code className="bg-primary/10 px-1 rounded">curl -X POST {window.location.origin}/logs -d "log_line"</code>
-                </p>
+              {/* Connection Status */}
+              <div className="flex items-center gap-4">
+                <ConnectionStatus 
+                  status={logReceiver.connectionStatus}
+                  onReconnect={logReceiver.reconnect}
+                  websocketUrl={websocketUrl}
+                />
+                <div className="hidden lg:block">
+                  <p className="font-tech text-xs text-glow-accent/70">
+                    {enableWebSocket ? 'WebSocket Mode' : 'Mock Mode'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -185,10 +204,16 @@ const Index = () => {
           <div className="absolute top-4 right-4 bg-card/80 border border-primary/30 rounded-lg px-3 py-2 backdrop-blur-sm">
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${
-                isRunning ? 'bg-status-success glow-success' : 'bg-status-error glow-error'
+                isRunning ? (enableWebSocket ? 
+                  (logReceiver.connectionStatus === 'connected' ? 'bg-status-success glow-success' : 'bg-yellow-500 glow-warning') 
+                  : 'bg-status-success glow-success') 
+                : 'bg-status-error glow-error'
               }`} />
               <span className="font-tech text-xs text-glow-primary">
-                {isRunning ? 'LIVE' : 'PAUSED'} • {totalRequestsGenerated.toLocaleString()} requests
+                {isRunning ? (enableWebSocket ? 
+                  (logReceiver.connectionStatus === 'connected' ? 'WEBSOCKET LIVE' : 'WAITING...') 
+                  : 'MOCK LIVE') 
+                : 'PAUSED'} • {totalRequestsGenerated.toLocaleString()} requests
               </span>
             </div>
           </div>
@@ -197,6 +222,34 @@ const Index = () => {
         {/* Sidebar - 30% of horizontal space, full height */}
         <div className="w-[30%] bg-background/50 backdrop-blur-sm border-l border-primary/20 flex flex-col">
           <div className="flex-1 overflow-hidden p-4 flex flex-col gap-4">
+            {/* WebSocket Configuration */}
+            <div className="flex-shrink-0 bg-card/20 border border-primary/20 rounded-lg p-3">
+              <h3 className="font-tech text-sm text-glow-primary mb-2">Connection Settings</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="enableWebSocket"
+                    checked={enableWebSocket}
+                    onChange={(e) => setEnableWebSocket(e.target.checked)}
+                    className="accent-primary"
+                  />
+                  <label htmlFor="enableWebSocket" className="font-tech text-xs text-glow-accent">
+                    Enable WebSocket
+                  </label>
+                </div>
+                {enableWebSocket && (
+                  <input
+                    type="text"
+                    placeholder="ws://localhost:8080/ws or wss://your-server.com/logs"
+                    value={websocketUrl}
+                    onChange={(e) => setWebsocketUrl(e.target.value)}
+                    className="w-full bg-card/50 border border-primary/20 rounded px-2 py-1 text-xs font-tech text-foreground focus:outline-none focus:border-primary/50"
+                  />
+                )}
+              </div>
+            </div>
+
             {/* Controls */}
             <div className="flex-shrink-0">
               <LogControls
